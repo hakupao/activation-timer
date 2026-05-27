@@ -219,26 +219,106 @@ The output under `dist/` is split by audience:
 
 ## How It Works
 
+### Architecture Overview
+
+The project has two entry points — CLI and menu bar app — that share the same shell engine:
+
+```text
+┌──────────────────────────────────────────────────────────┐
+│                     Entry Points                         │
+│                                                          │
+│   ┌─────────────┐              ┌──────────────────────┐  │
+│   │   launchd    │              │  Menu Bar App        │  │
+│   │  (scheduled) │              │  (SwiftUI GUI)       │  │
+│   └──────┬──────┘              └──────────┬───────────┘  │
+│          │                                │              │
+│          │ triggers at                    │ calls via    │
+│          │ HH:MM                          │ Process()    │
+│          ▼                                ▼              │
+│   ┌─────────────────────────────────────────────────┐    │
+│   │          Shared Shell Scripts                    │    │
+│   │                                                 │    │
+│   │  bin/activate-ai-window.sh  (activation runner) │    │
+│   │  bin/activation-state.sh    (JSON state query)  │    │
+│   │  scripts/install-launchd.sh (launchd manager)   │    │
+│   └────────────────────┬────────────────────────────┘    │
+│                        │                                 │
+│               sends minimal prompt                       │
+│                        │                                 │
+│              ┌─────────┴─────────┐                       │
+│              ▼                   ▼                        │
+│        ┌───────────┐      ┌───────────┐                  │
+│        │Claude Code│      │  Codex    │                  │
+│        │   CLI     │      │   CLI     │                  │
+│        └───────────┘      └───────────┘                  │
+└──────────────────────────────────────────────────────────┘
+```
+
+### CLI Runtime Flow
+
+When launchd triggers at a scheduled time (or you run `./install.sh run-now`), the activation script executes this sequence:
+
+1. **Load config** — reads `.env` for schedule, tool selection, quota settings, and binary paths.
+2. **Acquire lock** — creates `run/activation.lock` to prevent concurrent runs; a second trigger during an active run is skipped gracefully.
+3. **Quota preflight** (optional) — queries Claude and Codex quota status *before* sending any prompt. If a tool's quota is exhausted, that tool is skipped and the skip is recorded in `logs/usage.jsonl`.
+4. **Send prompt** — calls each enabled CLI with a minimal prompt (`Reply exactly READY`). Claude runs with `--tools ""` (no tools), `--no-session-persistence`, and `--disable-slash-commands`. Codex runs with `--ephemeral`, `--skip-git-repo-check`, and `--sandbox read-only`.
+5. **Record usage** — parses each CLI's JSON output with `jq` and appends a structured record to `logs/usage.jsonl` (token counts, cost, session ID, model, duration, etc.).
+6. **Post-run snapshots** (optional) — takes another quota snapshot after activation and appends it to `logs/status.jsonl`.
+7. **Release lock** — removes the lock directory so the next scheduled run can proceed.
+
+Timeout protection: each CLI call is wrapped in a background process with a configurable timeout (default 120 s). If a CLI hangs, it receives SIGTERM, then SIGKILL after 2 s.
+
+### Menu Bar App
+
+The SwiftUI app is a thin GUI shell — it does not contain its own scheduler or activation logic. Every operation delegates to the same shell scripts:
+
+| App action | Shell call |
+| --- | --- |
+| Read status | `bin/activation-state.sh --json` |
+| Toggle schedule | `install.sh install` or `install.sh uninstall` |
+| Save settings | Write `.env`, then `install.sh install` |
+| Run once | `install.sh run-now` |
+
+The app calls scripts through `Process()` (Foundation), reads stdout, and decodes the JSON into Swift model types.
+
+### Where Does Activation Run?
+
+Both CLIs are invoked inside the **activation-timer project directory itself** — never inside your real projects. This is a lightweight folder that contains only scripts and logs, so there is nothing for the CLIs to scan or modify.
+
+| Installation method | Working directory | Who creates it |
+| --- | --- | --- |
+| CLI (`git clone`) | The cloned repo, e.g. `~/activation-timer` | You, when you clone |
+| Menu bar app (dev build) | Same cloned repo | Same |
+| Menu bar app (.app / DMG) | `~/Library/Application Support/Activation Timer/activation-timer/` | App creates it automatically on first launch by copying scripts from the app bundle |
+
+How the directory is resolved:
+
+- **Shell scripts**: `ROOT_DIR` is computed at runtime by walking up from the script's own location (`bin/`) to find the parent directory. This means the project works from any clone path without editing scripts.
+- **Menu bar app**: `ProjectLocator` walks up from the app bundle to find a directory containing `bin/activate-ai-window.sh`. For a standalone `.app`, it falls back to copying bundled scripts into Application Support and using that copy as the root.
+
+The installer writes an absolute-path plist for macOS `launchd` and places it under `~/Library/LaunchAgents/`. The plist is intentionally git-ignored because it contains machine-specific paths.
+
+### Project Structure
+
 ```text
 activation-timer/
 ├── bin/
-│   └── activate-ai-window.sh
+│   ├── activate-ai-window.sh   ← activation runner
+│   └── activation-state.sh     ← JSON state for the app
 ├── scripts/
-│   └── install-launchd.sh
-├── launchd/
-│   └── generated plist files
-├── logs/
-│   └── generated run logs
+│   └── install-launchd.sh      ← launchd install/uninstall
+├── app/
+│   └── ActivationTimerMenuBar/ ← SwiftUI menu bar app
+├── launchd/                    ← generated plist (git-ignored)
+├── logs/                       ← generated logs
+│   ├── activation.log
+│   ├── usage.jsonl
+│   ├── status.jsonl
+│   └── raw/
 ├── .env.example
-├── CHANGELOG.md
-├── CONTRIBUTING.md
-├── install.sh
-├── LICENSE
-├── README.md
-└── README_CN.md
+├── install.sh                  ← user-facing entry point
+└── README.md
 ```
-
-The installer computes the project root at runtime, writes an absolute-path plist for macOS `launchd`, and installs it under `~/Library/LaunchAgents/`. The runner also computes its project root at runtime, so the project can be cloned to a different directory without editing scripts.
 
 GitHub Actions only validates the repository scripts on push and pull requests. Scheduled activation always runs locally on the Mac where `./install.sh install` was executed.
 

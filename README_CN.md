@@ -214,26 +214,106 @@ macOS 醒着。即使 App 没开，定时触发仍然照常由 launchd 执行；
 
 ## 工作方式
 
+### 架构总览
+
+项目有两个入口——CLI 和菜单栏 App——共享同一套 shell 引擎：
+
+```text
+┌──────────────────────────────────────────────────────────┐
+│                       入口层                              │
+│                                                          │
+│   ┌─────────────┐              ┌──────────────────────┐  │
+│   │   launchd    │              │  菜单栏 App          │  │
+│   │  (定时触发)   │              │  (SwiftUI GUI)       │  │
+│   └──────┬──────┘              └──────────┬───────────┘  │
+│          │                                │              │
+│          │ 按 HH:MM                       │ 通过         │
+│          │ 定时启动                        │ Process()    │
+│          ▼                                ▼              │
+│   ┌─────────────────────────────────────────────────┐    │
+│   │             共享 Shell 脚本                       │    │
+│   │                                                 │    │
+│   │  bin/activate-ai-window.sh  (激活执行器)          │    │
+│   │  bin/activation-state.sh    (JSON 状态查询)       │    │
+│   │  scripts/install-launchd.sh (launchd 管理器)     │    │
+│   └────────────────────┬────────────────────────────┘    │
+│                        │                                 │
+│                 发送极简 prompt                            │
+│                        │                                 │
+│              ┌─────────┴─────────┐                       │
+│              ▼                   ▼                        │
+│        ┌───────────┐      ┌───────────┐                  │
+│        │Claude Code│      │  Codex    │                  │
+│        │   CLI     │      │   CLI     │                  │
+│        └───────────┘      └───────────┘                  │
+└──────────────────────────────────────────────────────────┘
+```
+
+### CLI 运行流程
+
+当 launchd 到达预定时间（或你手动执行 `./install.sh run-now`）时，激活脚本按以下顺序执行：
+
+1. **加载配置** — 从 `.env` 读取 schedule、工具选择、额度设置和二进制路径。
+2. **获取锁** — 创建 `run/activation.lock` 防止并发；如果已有运行中的触发，第二次触发会被优雅跳过。
+3. **额度预检**（可选） — 在发送任何 prompt *之前*查询 Claude 和 Codex 的额度状态。如果某个工具的额度已耗尽，该工具会被跳过，跳过记录写入 `logs/usage.jsonl`。
+4. **发送 prompt** — 对每个启用的 CLI 发送一个极简 prompt（`Reply exactly READY`）。Claude 使用 `--tools ""`（无工具）、`--no-session-persistence` 和 `--disable-slash-commands`。Codex 使用 `--ephemeral`、`--skip-git-repo-check` 和 `--sandbox read-only`。
+5. **记录 usage** — 用 `jq` 解析每个 CLI 的 JSON 输出，把结构化记录追加到 `logs/usage.jsonl`（token 数量、费用、session ID、模型、耗时等）。
+6. **触发后快照**（可选） — 激活后再做一次额度快照，追加到 `logs/status.jsonl`。
+7. **释放锁** — 删除 lock 目录，下一次定时触发就可以正常执行。
+
+超时保护：每个 CLI 调用都封装在后台进程中，有可配置的超时时间（默认 120 秒）。如果 CLI 挂起，先发 SIGTERM，2 秒后再发 SIGKILL。
+
+### 菜单栏 App
+
+SwiftUI App 是一层很薄的 GUI 壳——它自己不包含调度器或激活逻辑，所有操作都委托给同一套 shell 脚本：
+
+| App 操作 | Shell 调用 |
+| --- | --- |
+| 读取状态 | `bin/activation-state.sh --json` |
+| 开关定时器 | `install.sh install` 或 `install.sh uninstall` |
+| 保存设置 | 写入 `.env`，然后 `install.sh install` |
+| 手动触发一次 | `install.sh run-now` |
+
+App 通过 Foundation 的 `Process()` 调用脚本，读取 stdout，再用 `JSONDecoder` 解析成 Swift 数据模型。
+
+### 激活在哪个目录运行？
+
+两个 CLI 都在 **activation-timer 项目目录本身**内被调用——永远不会进入你的真实项目。这是一个只包含脚本和日志的轻量目录，CLI 没有东西可以扫描或修改。
+
+| 安装方式 | 工作目录 | 谁创建的 |
+| --- | --- | --- |
+| CLI（`git clone`） | 你 clone 的仓库，如 `~/activation-timer` | 你手动 clone |
+| 菜单栏 App（开发构建） | 同上，复用源码目录 | 同上 |
+| 菜单栏 App（.app / DMG） | `~/Library/Application Support/Activation Timer/activation-timer/` | App 首次启动时自动从 bundle 拷贝脚本 |
+
+目录是怎么找到的：
+
+- **Shell 脚本**：`ROOT_DIR` 在运行时从脚本自身位置（`bin/`）向上取父目录。这意味着项目 clone 到任何路径都能正常工作，无需手动改脚本。
+- **菜单栏 App**：`ProjectLocator` 从 app bundle 向上遍历，寻找包含 `bin/activate-ai-window.sh` 的目录。对于独立的 `.app`，会把 bundle 内的脚本拷贝到 Application Support 并以该副本作为工作根目录。
+
+安装脚本会为 macOS `launchd` 生成带绝对路径的 plist，放到 `~/Library/LaunchAgents/`。plist 被 git ignore，因为它包含本机路径。
+
+### 项目结构
+
 ```text
 activation-timer/
 ├── bin/
-│   └── activate-ai-window.sh
+│   ├── activate-ai-window.sh   ← 激活执行器
+│   └── activation-state.sh     ← 给 App 用的 JSON 状态
 ├── scripts/
-│   └── install-launchd.sh
-├── launchd/
-│   └── 生成的 plist 文件
-├── logs/
-│   └── 生成的日志
+│   └── install-launchd.sh      ← launchd 安装/卸载
+├── app/
+│   └── ActivationTimerMenuBar/ ← SwiftUI 菜单栏 App
+├── launchd/                    ← 生成的 plist（git ignore）
+├── logs/                       ← 生成的日志
+│   ├── activation.log
+│   ├── usage.jsonl
+│   ├── status.jsonl
+│   └── raw/
 ├── .env.example
-├── CHANGELOG.md
-├── CONTRIBUTING.md
-├── install.sh
-├── LICENSE
-├── README.md
+├── install.sh                  ← 用户入口
 └── README_CN.md
 ```
-
-安装脚本会在运行时计算项目根目录，然后为 macOS `launchd` 生成带绝对路径的 plist，并安装到 `~/Library/LaunchAgents/`。runner 也会在运行时计算项目根目录，所以项目 clone 到别的位置后不需要手动改脚本路径。
 
 GitHub Actions 只在 push 和 pull request 时校验仓库脚本。真正的定时触发始终运行在执行过 `./install.sh install` 的那台 Mac 本地。
 
