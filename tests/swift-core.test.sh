@@ -71,6 +71,15 @@ swiftc \
   "$TMP_DIR/main.swift" \
   -o "$TMP_DIR/swift-core-test"
 
-"$TMP_DIR/swift-core-test"
+"$TMP_DIR/swift-core-test" &
+TEST_PID=$!
+( sleep 30; kill "$TEST_PID" 2>/dev/null ) &
+TIMER_PID=$!
+if ! wait "$TEST_PID"; then
+  kill "$TIMER_PID" 2>/dev/null; wait "$TIMER_PID" 2>/dev/null || true
+  echo "swift-core-test failed or timed out" >&2
+  exit 1
+fi
+kill "$TIMER_PID" 2>/dev/null; wait "$TIMER_PID" 2>/dev/null || true
 
 echo "swift core test passed"

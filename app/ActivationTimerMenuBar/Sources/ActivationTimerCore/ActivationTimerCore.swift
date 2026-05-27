@@ -75,21 +75,25 @@ public enum ProjectLocator {
 
         var current = start
         let fileManager = FileManager.default
+        var depth = 0
 
-        while true {
+        while depth < 64 {
             if fileManager.fileExists(atPath: current.appendingPathComponent("bin/activate-ai-window.sh").path) {
                 return current
             }
 
             let parent = current.deletingLastPathComponent()
             if parent.path == current.path {
-                if let root = bundledRoot(resourceURL: resourceURL, applicationSupportURL: applicationSupportURL) {
-                    return root
-                }
-                return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                break
             }
             current = parent
+            depth += 1
         }
+
+        if let root = bundledRoot(resourceURL: resourceURL, applicationSupportURL: applicationSupportURL) {
+            return root
+        }
+        return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
     }
 
     public static func bundledRoot(
