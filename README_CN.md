@@ -70,6 +70,45 @@ cp .env.example .env
 ./bin/activate-ai-window.sh --once --tool codex
 ```
 
+## 日常运行检查
+
+用下面几条命令判断定时器是否已经安装、是否正在等待触发、以及上次运行结果：
+
+```sh
+./install.sh status
+tail -f logs/activation.log
+tail -n 20 logs/usage.jsonl | jq
+tail -n 20 logs/status.jsonl | jq
+```
+
+`./install.sh status` 应该能看到已加载的 LaunchAgent，以及你配置的日历触发时间。两次触发之间显示 `state = not running` 是正常的，它表示任务已经加载，正在等待下一个定时点。真正触发的短时间内才可能显示 `running`。
+
+`logs/activation.log` 是最适合日常看的文本日志。一次正常运行大致会像这样：
+
+```text
+Activation run started ...
+Quota preflight started
+Claude job started
+Codex job started
+Activation run finished exit=0
+```
+
+如果 quota preflight 判断额度已经耗尽，就不会发送 prompt，而是干净地记录跳过：
+
+```text
+claude job skipped by quota preflight reason=quota_exhausted
+codex job skipped by quota preflight reason=quota_exhausted
+```
+
+`logs/usage.jsonl` 是结构化的成功/跳过记录。成功触发通常会包含 `ok: true`、`result: READY` 和 `exit_code: 0`。被跳过的触发会包含 `skipped: true` 和 `skip_reason`。
+
+常用命令含义：
+
+- `./install.sh status`：检查本地 `launchd` 是否已经加载定时器。
+- `./install.sh quota`：只查额度状态，不发送 prompt。
+- `./install.sh dry-run`：只打印计划执行的命令，不发送 prompt。
+- `./install.sh run-now`：立刻触发已安装的 LaunchAgent；如果额度可用，可能消耗 usage。
+
 ## 配置
 
 复制 `.env.example` 为 `.env`，按需修改：

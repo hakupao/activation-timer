@@ -70,6 +70,45 @@ You can also call the runner directly:
 ./bin/activate-ai-window.sh --once --tool codex
 ```
 
+## Daily Operation
+
+Use these checks to confirm the timer is installed, waiting, and recording results:
+
+```sh
+./install.sh status
+tail -f logs/activation.log
+tail -n 20 logs/usage.jsonl | jq
+tail -n 20 logs/status.jsonl | jq
+```
+
+`./install.sh status` should show a loaded LaunchAgent with calendar triggers for your configured hours. `state = not running` is normal between scheduled runs; it means the job is loaded and waiting for the next trigger. During a trigger it may briefly show `running`.
+
+`logs/activation.log` is the quickest human-readable view. A normal run looks like this:
+
+```text
+Activation run started ...
+Quota preflight started
+Claude job started
+Codex job started
+Activation run finished exit=0
+```
+
+If quota preflight decides not to send a prompt, the run stays clean and records a skip:
+
+```text
+claude job skipped by quota preflight reason=quota_exhausted
+codex job skipped by quota preflight reason=quota_exhausted
+```
+
+`logs/usage.jsonl` is the structured success/skip record. Successful activations usually include `ok: true`, `result: READY`, and `exit_code: 0`. Skipped activations include `skipped: true` and a `skip_reason`.
+
+Manual command guide:
+
+- `./install.sh status`: checks whether local `launchd` has the timer loaded.
+- `./install.sh quota`: checks quota status without sending prompts.
+- `./install.sh dry-run`: prints the planned commands without sending prompts.
+- `./install.sh run-now`: triggers the installed LaunchAgent once and may consume usage if quota is available.
+
 ## Configuration
 
 Copy `.env.example` to `.env` and adjust values:
