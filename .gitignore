@@ -1,0 +1,9 @@
+.DS_Store
+.env
+.omc/
+.omx/
+logs/*.log
+logs/*.jsonl
+logs/raw/
+run/
+launchd/*.plist
