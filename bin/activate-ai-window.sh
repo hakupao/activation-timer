@@ -174,6 +174,7 @@ record_claude_usage() {
     return 0
   fi
 
+  # shellcheck disable=SC2016 # jq variables are intentionally evaluated by jq.
   if "$JQ_BIN" -c -Rcs \
     --arg timestamp "$(timestamp)" \
     --arg tool "claude" \
@@ -209,6 +210,7 @@ record_codex_usage() {
     return 0
   fi
 
+  # shellcheck disable=SC2016 # jq variables are intentionally evaluated by jq.
   if "$JQ_BIN" -c -Rcs \
     --arg timestamp "$(timestamp)" \
     --arg tool "codex" \
@@ -239,7 +241,8 @@ record_codex_usage() {
 }
 
 record_claude_status() {
-  local output_file="${RAW_LOG_DIR}/$(stamp_for_file)-claude-status.log"
+  local output_file
+  output_file="${RAW_LOG_DIR}/$(stamp_for_file)-claude-status.log"
   local status_exit=0
   local auth_status="{}"
   local cache_file="${HOME}/.claude/plugins/oh-my-claudecode/.usage-cache-anthropic.json"
@@ -265,6 +268,7 @@ record_claude_status() {
     return 1
   fi
 
+  # shellcheck disable=SC2016 # jq variables are intentionally evaluated by jq.
   "$JQ_BIN" -c \
     --arg timestamp "$(timestamp)" \
     --arg tool "claude" \
@@ -308,7 +312,8 @@ record_claude_status() {
 }
 
 record_codex_status() {
-  local output_file="${RAW_LOG_DIR}/$(stamp_for_file)-codex-status.log"
+  local output_file
+  output_file="${RAW_LOG_DIR}/$(stamp_for_file)-codex-status.log"
 
   if [[ -z "$JQ_BIN" || ! -x "$JQ_BIN" ]]; then
     log "WARNING: jq not found; Codex status snapshot was not recorded"
@@ -415,6 +420,7 @@ send({
 });
 NODE
 
+  # shellcheck disable=SC2016 # jq variables are intentionally evaluated by jq.
   "$JQ_BIN" -c -Rcs \
     --arg timestamp "$(timestamp)" \
     --arg tool "codex" \
@@ -474,7 +480,8 @@ record_status_snapshots() {
 }
 
 run_claude() {
-  local output_file="${RAW_LOG_DIR}/$(stamp_for_file)-claude.log"
+  local output_file
+  output_file="${RAW_LOG_DIR}/$(stamp_for_file)-claude.log"
   local cmd=(
     "$CLAUDE_BIN"
     -p "$ACTIVATION_PROMPT"
@@ -499,7 +506,8 @@ run_claude() {
 }
 
 run_codex() {
-  local output_file="${RAW_LOG_DIR}/$(stamp_for_file)-codex.log"
+  local output_file
+  output_file="${RAW_LOG_DIR}/$(stamp_for_file)-codex.log"
   local cmd=(
     "$CODEX_BIN"
     exec
@@ -560,7 +568,7 @@ run_check() {
 }
 
 main() {
-  cd "$ROOT_DIR"
+  cd "$ROOT_DIR" || return 1
 
   if [[ "$MODE" == "check" ]]; then
     run_check
