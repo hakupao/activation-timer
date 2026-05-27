@@ -20,6 +20,7 @@ The default schedule is `07:00`, `12:00`, `17:00`, and `22:00` local macOS time.
 - Human-readable run history in `logs/activation.log`.
 - Structured per-run usage records in `logs/usage.jsonl`.
 - Structured five-hour and weekly quota snapshots in `logs/status.jsonl`.
+- Quota preflight that skips activation gracefully when a known quota is exhausted.
 - Clone-friendly configuration through `.env`.
 - Safe manual commands for dry runs, dependency checks, quota checks, and uninstall.
 
@@ -82,6 +83,9 @@ Copy `.env.example` to `.env` and adjust values:
 | `ACTIVATION_PROMPT` | Low-cost prompt sent to the CLIs | `Reply exactly READY...` |
 | `TIMEOUT_SECONDS` | Per-tool timeout | `120` |
 | `ENABLE_STATUS_SNAPSHOTS` | Record quota snapshots after real activation | `1` |
+| `ENABLE_QUOTA_PREFLIGHT` | Check quota before sending prompts | `1` |
+| `QUOTA_PREFLIGHT_ON_UNKNOWN` | `allow` or `skip` when quota cannot be checked | `allow` |
+| `QUOTA_EXHAUSTED_THRESHOLD_PERCENT` | Skip when remaining quota is at or below this percent | `0` |
 | `CLAUDE_BIN` | Optional Claude binary override | auto-discovered |
 | `CODEX_BIN` | Optional Codex binary override | auto-discovered |
 | `JQ_BIN` | Optional `jq` binary override | auto-discovered |
@@ -134,11 +138,14 @@ activation-timer/
 
 The installer computes the project root at runtime, writes an absolute-path plist for macOS `launchd`, and installs it under `~/Library/LaunchAgents/`. The runner also computes its project root at runtime, so the project can be cloned to a different directory without editing scripts.
 
+GitHub Actions only validates the repository scripts on push and pull requests. Scheduled activation always runs locally on the Mac where `./install.sh install` was executed.
+
 ## Safety Notes
 
 - `dry-run` does not send model prompts.
 - `quota` only queries account/rate-limit status paths and local caches; it does not send a model prompt.
-- `run-now` and scheduled activation do send one small prompt per enabled tool.
+- `run-now` and scheduled activation first run quota preflight, then send one small prompt per enabled tool only when quota appears available.
+- If quota is known to be exhausted, the tool is skipped and recorded in `logs/usage.jsonl` with `skipped: true`.
 - The default Claude invocation disables slash commands, disables session persistence, and uses no tools.
 - The default Codex invocation uses `--ephemeral`, `--skip-git-repo-check`, and `--sandbox read-only`.
 - The generated plist is intentionally ignored by git because it contains machine-specific absolute paths.

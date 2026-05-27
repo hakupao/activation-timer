@@ -20,6 +20,7 @@ Activation Timer 适合想把 Claude Code / Codex 用量窗口固定到自己作
 - `logs/activation.log` 记录人类可读的运行历史。
 - `logs/usage.jsonl` 记录每次真实触发返回的 token/usage 信息。
 - `logs/status.jsonl` 记录 5 小时窗口和周额度快照。
+- 真实触发前先检查额度；如果明确额度耗尽，会优雅跳过并记录日志。
 - 通过 `.env` 配置时间、label、prompt、timeout 和工具路径。
 - 支持 dry-run、依赖检查、只查额度、手动触发和卸载。
 
@@ -82,6 +83,9 @@ cp .env.example .env
 | `ACTIVATION_PROMPT` | 发送给 CLI 的低消耗 prompt | `Reply exactly READY...` |
 | `TIMEOUT_SECONDS` | 每个工具的超时时间 | `120` |
 | `ENABLE_STATUS_SNAPSHOTS` | 真实触发后是否记录额度快照 | `1` |
+| `ENABLE_QUOTA_PREFLIGHT` | 发送 prompt 前是否先检查额度 | `1` |
+| `QUOTA_PREFLIGHT_ON_UNKNOWN` | 无法确认额度时 `allow` 继续或 `skip` 跳过 | `allow` |
+| `QUOTA_EXHAUSTED_THRESHOLD_PERCENT` | 剩余额度低于或等于该百分比时跳过 | `0` |
 | `CLAUDE_BIN` | Claude 路径覆盖 | 自动发现 |
 | `CODEX_BIN` | Codex 路径覆盖 | 自动发现 |
 | `JQ_BIN` | `jq` 路径覆盖 | 自动发现 |
@@ -134,11 +138,14 @@ activation-timer/
 
 安装脚本会在运行时计算项目根目录，然后为 macOS `launchd` 生成带绝对路径的 plist，并安装到 `~/Library/LaunchAgents/`。runner 也会在运行时计算项目根目录，所以项目 clone 到别的位置后不需要手动改脚本路径。
 
+GitHub Actions 只在 push 和 pull request 时校验仓库脚本。真正的定时触发始终运行在执行过 `./install.sh install` 的那台 Mac 本地。
+
 ## 安全说明
 
 - `dry-run` 不会发送模型 prompt。
 - `quota` 只查询账号/rate-limit 状态和本地 cache，不会发送模型 prompt。
-- `run-now` 和定时触发会给启用的工具各发送一个很短的 prompt。
+- `run-now` 和定时触发会先做 quota preflight；只有额度看起来可用时，才给启用的工具发送一个很短的 prompt。
+- 如果明确额度已经耗尽，对应工具会被跳过，并在 `logs/usage.jsonl` 里记录 `skipped: true`。
 - Claude 默认禁用 slash commands、禁用 session persistence，并传入空 tools。
 - Codex 默认使用 `--ephemeral`、`--skip-git-repo-check` 和 `--sandbox read-only`。
 - 生成的 plist 会被 git 忽略，因为它包含本机绝对路径。

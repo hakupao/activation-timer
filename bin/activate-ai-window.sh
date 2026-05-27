@@ -33,6 +33,10 @@ ACTIVATION_PROMPT="${ACTIVATION_PROMPT:-Reply exactly READY. Do not inspect file
 TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-120}"
 ACTIVATION_TOOL="${ACTIVATION_TOOL:-all}"
 ENABLE_STATUS_SNAPSHOTS="${ENABLE_STATUS_SNAPSHOTS:-1}"
+ENABLE_QUOTA_PREFLIGHT="${ENABLE_QUOTA_PREFLIGHT:-1}"
+QUOTA_PREFLIGHT_ON_UNKNOWN="${QUOTA_PREFLIGHT_ON_UNKNOWN:-allow}"
+QUOTA_EXHAUSTED_THRESHOLD_PERCENT="${QUOTA_EXHAUSTED_THRESHOLD_PERCENT:-0}"
+RUN_ID="${RUN_ID:-$(date '+%Y%m%d-%H%M%S')-$$}"
 
 MODE="once"
 TOOL="$ACTIVATION_TOOL"
@@ -51,6 +55,9 @@ Environment overrides:
   TIMEOUT_SECONDS=120
   ACTIVATION_TOOL=all
   ENABLE_STATUS_SNAPSHOTS=1
+  ENABLE_QUOTA_PREFLIGHT=1
+  QUOTA_PREFLIGHT_ON_UNKNOWN=allow
+  QUOTA_EXHAUSTED_THRESHOLD_PERCENT=0
   JQ_BIN=/path/to/jq
   NODE_BIN=/path/to/node
   OMC_BIN=/path/to/omc
@@ -99,6 +106,14 @@ case "$TOOL" in
   all|claude|codex) ;;
   *)
     echo "--tool must be all, claude, or codex" >&2
+    exit 2
+    ;;
+esac
+
+case "$QUOTA_PREFLIGHT_ON_UNKNOWN" in
+  allow|skip) ;;
+  *)
+    echo "QUOTA_PREFLIGHT_ON_UNKNOWN must be allow or skip" >&2
     exit 2
     ;;
 esac
@@ -177,12 +192,14 @@ record_claude_usage() {
   # shellcheck disable=SC2016 # jq variables are intentionally evaluated by jq.
   if "$JQ_BIN" -c -Rcs \
     --arg timestamp "$(timestamp)" \
+    --arg run_id "$RUN_ID" \
     --arg tool "claude" \
     --argjson exit_code "$exit_code" \
     --arg raw_log "$output_file" '
       (split("\n") | map(select(length > 0) | try fromjson catch empty) | first // {}) as $o
       | {
           timestamp: $timestamp,
+          run_id: $run_id,
           tool: $tool,
           exit_code: $exit_code,
           ok: ($exit_code == 0),
@@ -213,6 +230,7 @@ record_codex_usage() {
   # shellcheck disable=SC2016 # jq variables are intentionally evaluated by jq.
   if "$JQ_BIN" -c -Rcs \
     --arg timestamp "$(timestamp)" \
+    --arg run_id "$RUN_ID" \
     --arg tool "codex" \
     --argjson exit_code "$exit_code" \
     --arg raw_log "$output_file" '
@@ -223,6 +241,7 @@ record_codex_usage() {
       | ($events | map(select(.type == "item.completed" and .item.type == "agent_message")) | last // {}) as $message
       | {
           timestamp: $timestamp,
+          run_id: $run_id,
           tool: $tool,
           exit_code: $exit_code,
           ok: ($exit_code == 0 and ($completed.type == "turn.completed")),
@@ -271,6 +290,7 @@ record_claude_status() {
   # shellcheck disable=SC2016 # jq variables are intentionally evaluated by jq.
   "$JQ_BIN" -c \
     --arg timestamp "$(timestamp)" \
+    --arg run_id "$RUN_ID" \
     --arg tool "claude" \
     --argjson query_exit_code "$status_exit" \
     --arg raw_log "$output_file" \
@@ -279,6 +299,7 @@ record_claude_status() {
       | ($cache.data // {}) as $d
       | {
           timestamp: $timestamp,
+          run_id: $run_id,
           tool: $tool,
           ok: ($query_exit_code == 0 and ($cache.error // false | not)),
           query_exit_code: $query_exit_code,
@@ -423,6 +444,7 @@ NODE
   # shellcheck disable=SC2016 # jq variables are intentionally evaluated by jq.
   "$JQ_BIN" -c -Rcs \
     --arg timestamp "$(timestamp)" \
+    --arg run_id "$RUN_ID" \
     --arg tool "codex" \
     --arg raw_log "$output_file" '
       (split("\n") | map(select(length > 0) | try fromjson catch empty)) as $events
@@ -433,6 +455,7 @@ NODE
       | ($snapshot.secondary // {}) as $secondary
       | {
           timestamp: $timestamp,
+          run_id: $run_id,
           tool: $tool,
           ok: ($record != null),
           plan_type: ($snapshot.planType // null),
@@ -477,6 +500,162 @@ record_status_snapshots() {
   fi
 
   return "$status"
+}
+
+quota_preflight_decision() {
+  local tool="$1"
+
+  if [[ "$ENABLE_QUOTA_PREFLIGHT" != "1" ]]; then
+    printf '{"tool":"%s","action":"allow","reason":"preflight_disabled"}\n' "$tool"
+    return 0
+  fi
+
+  if [[ -z "$JQ_BIN" || ! -x "$JQ_BIN" ]]; then
+    printf '{"tool":"%s","action":"allow","reason":"jq_unavailable"}\n' "$tool"
+    return 0
+  fi
+
+  if [[ ! -f "$STATUS_LOG" ]]; then
+    printf '{"tool":"%s","action":"%s","reason":"preflight_status_missing"}\n' "$tool" "$QUOTA_PREFLIGHT_ON_UNKNOWN"
+    return 0
+  fi
+
+  # shellcheck disable=SC2016 # jq variables are intentionally evaluated by jq.
+  "$JQ_BIN" -s -c \
+    --arg tool "$tool" \
+    --arg run_id "$RUN_ID" \
+    --arg on_unknown "$QUOTA_PREFLIGHT_ON_UNKNOWN" \
+    --argjson threshold "$QUOTA_EXHAUSTED_THRESHOLD_PERCENT" '
+      def unknown($reason):
+        {
+          tool: $tool,
+          action: (if $on_unknown == "skip" then "skip" else "allow" end),
+          reason: $reason,
+          status_ok: false
+        };
+      def n($x):
+        if $x == null then null
+        elif ($x | type) == "number" then $x
+        elif ($x | type) == "string" then ($x | tonumber? // null)
+        else null
+        end;
+      def exhausted($name; $w):
+        (n($w.remaining_percent // null)) as $remaining
+        | (n($w.used_percent // null)) as $used
+        | if ($remaining != null and $remaining <= $threshold) then
+            $name + "_remaining_exhausted"
+          elif ($used != null and $used >= (100 - $threshold)) then
+            $name + "_used_exhausted"
+          else
+            empty
+          end;
+
+      (map(select(.tool == $tool and .run_id == $run_id)) | last // null) as $s
+      | if $s == null then
+          unknown("preflight_status_missing")
+        elif ($s.ok != true) then
+          unknown("preflight_status_not_ok")
+        else
+          ($s.five_hour // {}) as $five
+          | ($s.weekly // {}) as $weekly
+          | ($s.sonnet_weekly // {}) as $sonnet_weekly
+          | (($s.rate_limit_reached_type // "") | tostring) as $rate_limit_reached_type
+          | [
+              exhausted("five_hour"; $five),
+              exhausted("weekly"; $weekly),
+              (if $tool == "claude" then exhausted("sonnet_weekly"; $sonnet_weekly) else empty end),
+              (
+                if $tool == "codex" and $rate_limit_reached_type != "" and $rate_limit_reached_type != "null" then
+                  "rate_limit_reached:" + $rate_limit_reached_type
+                else
+                  empty
+                end
+              )
+            ] as $reasons
+          | {
+              tool: $tool,
+              action: (if ($reasons | length) > 0 then "skip" else "allow" end),
+              reason: (if ($reasons | length) > 0 then "quota_exhausted" else "quota_available" end),
+              status_ok: true,
+              exhausted: $reasons,
+              status_timestamp: ($s.timestamp // null),
+              rate_limit_reached_type: ($s.rate_limit_reached_type // null),
+              five_hour_remaining_percent: ($five.remaining_percent // null),
+              weekly_remaining_percent: ($weekly.remaining_percent // null),
+              sonnet_weekly_remaining_percent: ($sonnet_weekly.remaining_percent // null)
+            }
+        end
+    ' "$STATUS_LOG" 2>/dev/null || {
+      printf '{"tool":"%s","action":"%s","reason":"preflight_decision_failed"}\n' "$tool" "$QUOTA_PREFLIGHT_ON_UNKNOWN"
+    }
+}
+
+record_skipped_usage() {
+  local tool="$1"
+  local reason="$2"
+  local decision_json="$3"
+
+  if [[ -z "$JQ_BIN" || ! -x "$JQ_BIN" ]]; then
+    log "WARNING: jq not found; skipped ${tool} usage snapshot was not recorded"
+    return 0
+  fi
+
+  # shellcheck disable=SC2016 # jq variables are intentionally evaluated by jq.
+  "$JQ_BIN" -n -c \
+    --arg timestamp "$(timestamp)" \
+    --arg run_id "$RUN_ID" \
+    --arg tool "$tool" \
+    --arg reason "$reason" \
+    --argjson decision "$decision_json" '
+      {
+        timestamp: $timestamp,
+        run_id: $run_id,
+        tool: $tool,
+        ok: true,
+        skipped: true,
+        skip_reason: $reason,
+        preflight: $decision
+      }
+    ' >>"$USAGE_LOG" 2>/dev/null || {
+      log "WARNING: failed to record skipped ${tool} usage snapshot"
+      return 1
+    }
+
+  log "${tool} usage snapshot recorded as skipped usage_log=${USAGE_LOG}"
+}
+
+maybe_skip_for_quota() {
+  local tool="$1"
+  local decision_json
+  local action
+  local reason
+
+  if [[ "$MODE" == "dry-run" || "$ENABLE_QUOTA_PREFLIGHT" != "1" ]]; then
+    return 1
+  fi
+
+  decision_json="$(quota_preflight_decision "$tool")"
+  if [[ -n "$JQ_BIN" && -x "$JQ_BIN" ]]; then
+    action="$(printf '%s' "$decision_json" | "$JQ_BIN" -r '.action // "allow"' 2>/dev/null || printf 'allow')"
+    reason="$(printf '%s' "$decision_json" | "$JQ_BIN" -r '.reason // "unknown"' 2>/dev/null || printf 'unknown')"
+  else
+    action="allow"
+    reason="jq_unavailable"
+  fi
+
+  if [[ "$action" == "skip" ]]; then
+    log "${tool} job skipped by quota preflight reason=${reason}"
+    record_skipped_usage "$tool" "$reason" "$decision_json"
+    return 0
+  fi
+
+  if [[ "$reason" != "quota_available" && "$reason" != "preflight_disabled" ]]; then
+    log "WARNING: ${tool} quota preflight was inconclusive reason=${reason}; proceeding because QUOTA_PREFLIGHT_ON_UNKNOWN=${QUOTA_PREFLIGHT_ON_UNKNOWN}"
+  else
+    log "${tool} quota preflight passed"
+  fi
+
+  return 1
 }
 
 run_claude() {
@@ -587,18 +766,34 @@ main() {
   trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
 
   local status=0
-  log "Activation run started mode=${MODE} tool=${TOOL} root=${ROOT_DIR}"
+  local sent_prompt=0
+  local preflight_ran=0
+  log "Activation run started run_id=${RUN_ID} mode=${MODE} tool=${TOOL} root=${ROOT_DIR}"
+
+  if [[ "$MODE" != "dry-run" && "$ENABLE_QUOTA_PREFLIGHT" == "1" ]]; then
+    log "Quota preflight started"
+    record_status_snapshots || log "WARNING: one or more quota preflight snapshots failed"
+    preflight_ran=1
+  fi
 
   if [[ "$TOOL" == "all" || "$TOOL" == "claude" ]]; then
-    run_claude || status=$?
+    if ! maybe_skip_for_quota "claude"; then
+      sent_prompt=1
+      run_claude || status=$?
+    fi
   fi
 
   if [[ "$TOOL" == "all" || "$TOOL" == "codex" ]]; then
-    run_codex || status=$?
+    if ! maybe_skip_for_quota "codex"; then
+      sent_prompt=1
+      run_codex || status=$?
+    fi
   fi
 
   if [[ "$MODE" == "dry-run" ]]; then
     log "Status snapshots skipped in dry-run mode"
+  elif [[ "$preflight_ran" == "1" && "$sent_prompt" == "0" ]]; then
+    log "Post-run status snapshots skipped because quota preflight skipped all enabled prompts"
   elif [[ "$ENABLE_STATUS_SNAPSHOTS" == "1" ]]; then
     record_status_snapshots || log "WARNING: one or more status snapshots failed"
   else
