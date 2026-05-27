@@ -13,6 +13,10 @@ Activation Timer is a small Bash-based utility for people who want predictable C
 
 The default schedule is `07:00`, `12:00`, `17:00`, and `22:00` local macOS time.
 
+<p align="center">
+  <img src="docs/images/settings-en.png" width="420" alt="Activation Timer — English UI" />
+</p>
+
 ## Features
 
 - Scheduled Claude Code and Codex activation through macOS `launchd`.
@@ -38,6 +42,15 @@ The activation itself only requires the Claude and Codex CLIs. Quota snapshots g
 
 ## Quick Start
 
+Choose one distribution:
+
+- **CLI/launchd package**: for advanced users who want the lightest possible
+  install and direct shell control.
+- **Menu bar app package**: for beginners who want a GUI monitor and settings
+  panel while keeping the same local scheduler underneath.
+
+### CLI / launchd
+
 ```sh
 git clone https://github.com/hakupao/activation-timer.git
 cd activation-timer
@@ -49,12 +62,24 @@ cp .env.example .env
 
 `./install.sh` defaults to `install`, which generates a user LaunchAgent and loads it into the current macOS GUI session.
 
+### Menu bar app
+
+Download the GUI DMG, drag `Activation Timer.app` to `Applications`, open it,
+then use the status-bar menu to install/reload the schedule, refresh quota, run
+once, pause the schedule, and edit settings. The app bundles the same CLI engine
+and installs its working copy under
+`~/Library/Application Support/Activation Timer/activation-timer`.
+
+See [INSTALL.md](INSTALL.md) for complete beginner and advanced installation
+steps.
+
 ## Commands
 
 ```sh
 ./install.sh check        # verify local dependencies
 ./install.sh dry-run      # show commands without sending model prompts
 ./install.sh quota        # query quota status without sending model prompts
+./install.sh app-status   # print JSON status for the menu bar app
 ./install.sh status       # show launchd status
 ./install.sh run-now      # trigger once; this sends model prompts
 ./install.sh uninstall    # unload and remove the LaunchAgent
@@ -116,8 +141,7 @@ Copy `.env.example` to `.env` and adjust values:
 | Variable | Description | Default |
 | --- | --- | --- |
 | `LABEL` | macOS LaunchAgent label | `com.activation-timer.ai-window` |
-| `SCHEDULE_HOURS` | Comma-separated local hours | `7,12,17,22` |
-| `SCHEDULE_MINUTE` | Shared minute for all schedule entries | `0` |
+| `SCHEDULE_TIMES` | Comma-separated `HH:MM` schedule entries; each time point is independent | `"07:00,12:00,17:00,22:00"` |
 | `ACTIVATION_TOOL` | `all`, `claude`, or `codex` | `all` |
 | `ACTIVATION_PROMPT` | Low-cost prompt sent to the CLIs | `Reply exactly READY...` |
 | `TIMEOUT_SECONDS` | Per-tool timeout | `120` |
@@ -125,6 +149,8 @@ Copy `.env.example` to `.env` and adjust values:
 | `ENABLE_QUOTA_PREFLIGHT` | Check quota before sending prompts | `1` |
 | `QUOTA_PREFLIGHT_ON_UNKNOWN` | `allow` or `skip` when quota cannot be checked | `allow` |
 | `QUOTA_EXHAUSTED_THRESHOLD_PERCENT` | Skip when remaining quota is at or below this percent | `0` |
+| `KEEP_AWAKE_MODE` | `off`, `during`, or `always`; scheduled CLI runs use `caffeinate` when not `off` | `off` |
+| `KEEP_AWAKE_SECONDS` | Bounded keep-awake duration for each real activation run | `900` |
 | `CLAUDE_BIN` | Optional Claude binary override | auto-discovered |
 | `CODEX_BIN` | Optional Codex binary override | auto-discovered |
 | `JQ_BIN` | Optional `jq` binary override | auto-discovered |
@@ -153,6 +179,43 @@ Log files:
 - `logs/status.jsonl`: five-hour and weekly quota snapshots per tool.
 - `logs/raw/`: raw Claude/Codex/status outputs for debugging and future parsing.
 - `logs/launchd.out.log` and `logs/launchd.err.log`: launchd stdout/stderr.
+
+## Menu Bar App
+
+The CLI/launchd workflow remains the primary engine. The optional menu bar app
+is a separate beginner-friendly distribution that adds a macOS status-bar
+control surface for the same configuration, schedule, quota snapshots, and logs.
+
+Build the app bundle locally:
+
+```sh
+./app/ActivationTimerMenuBar/build-app.sh
+open "dist/Activation Timer.app"
+```
+
+The app calls the existing scripts instead of replacing them:
+
+- `./install.sh app-status` for a JSON state snapshot.
+- `./install.sh install` to save/reload the LaunchAgent after settings changes.
+- `./install.sh run-now`, `quota`, `dry-run`, and `uninstall` for menu actions.
+
+Set `KEEP_AWAKE_MODE=always` in the app if you want it to keep macOS awake while
+the menu bar app is open. Scheduled activation still works without the app
+running, and `KEEP_AWAKE_MODE=during` protects only real activation runs.
+
+## Release Packaging
+
+Maintainers can build both publishable artifacts with one command:
+
+```sh
+./scripts/package-release.sh
+```
+
+The output under `dist/` is split by audience:
+
+- `activation-timer-cli-<version>.tar.gz`: lightweight CLI/launchd package.
+- `activation-timer-gui-<version>.dmg`: GUI app package for beginner users.
+- `activation-timer-gui-<version>.zip`: fallback GUI app archive.
 
 ## How It Works
 

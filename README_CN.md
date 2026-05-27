@@ -13,6 +13,10 @@ Activation Timer 适合想把 Claude Code / Codex 用量窗口固定到自己作
 
 默认触发时间是本机时间 `07:00`、`12:00`、`17:00`、`22:00`。
 
+<p align="center">
+  <img src="docs/images/settings-zh.png" width="420" alt="Activation Timer — 中文界面" />
+</p>
+
 ## 功能
 
 - 使用 macOS `launchd` 定时触发 Claude Code 和 Codex。
@@ -38,6 +42,13 @@ Activation Timer 适合想把 Claude Code / Codex 用量窗口固定到自己作
 
 ## 快速开始
 
+先选择一种发布包：
+
+- **CLI/launchd 包**：给 IT 高手和想保持极轻量的人，直接用 shell 控制。
+- **菜单栏 App 包**：给小白初学者，用图形化界面监看和设置；底层仍然是同一套本地定时器。
+
+### CLI / launchd
+
 ```sh
 git clone https://github.com/hakupao/activation-timer.git
 cd activation-timer
@@ -49,12 +60,22 @@ cp .env.example .env
 
 `./install.sh` 默认执行 `install`，会生成 LaunchAgent 并加载到当前 macOS 用户的 GUI session。
 
+### 菜单栏 App
+
+下载 GUI DMG，把 `Activation Timer.app` 拖到 `Applications` 后打开，然后在
+状态栏菜单里安装/重载 schedule、刷新 quota、手动触发、暂停定时器和编辑设置。
+App 内置同一套 CLI engine，并会把工作副本放到
+`~/Library/Application Support/Activation Timer/activation-timer`。
+
+完整的新手和高手安装步骤见 [INSTALL_CN.md](INSTALL_CN.md)。
+
 ## 常用命令
 
 ```sh
 ./install.sh check        # 检查本机依赖
 ./install.sh dry-run      # 只展示命令，不发送模型 prompt
 ./install.sh quota        # 只查询额度状态，不发送模型 prompt
+./install.sh app-status   # 输出菜单栏 App 使用的 JSON 状态
 ./install.sh status       # 查看 launchd 状态
 ./install.sh run-now      # 手动真实触发一次，会发送模型 prompt
 ./install.sh uninstall    # 卸载 LaunchAgent
@@ -116,8 +137,7 @@ codex job skipped by quota preflight reason=quota_exhausted
 | 变量 | 说明 | 默认值 |
 | --- | --- | --- |
 | `LABEL` | macOS LaunchAgent label | `com.activation-timer.ai-window` |
-| `SCHEDULE_HOURS` | 逗号分隔的本地小时 | `7,12,17,22` |
-| `SCHEDULE_MINUTE` | 所有触发时间共用的分钟 | `0` |
+| `SCHEDULE_TIMES` | 逗号分隔的 `HH:MM` 触发时间，每个时间点相互独立 | `"07:00,12:00,17:00,22:00"` |
 | `ACTIVATION_TOOL` | `all`、`claude` 或 `codex` | `all` |
 | `ACTIVATION_PROMPT` | 发送给 CLI 的低消耗 prompt | `Reply exactly READY...` |
 | `TIMEOUT_SECONDS` | 每个工具的超时时间 | `120` |
@@ -125,6 +145,8 @@ codex job skipped by quota preflight reason=quota_exhausted
 | `ENABLE_QUOTA_PREFLIGHT` | 发送 prompt 前是否先检查额度 | `1` |
 | `QUOTA_PREFLIGHT_ON_UNKNOWN` | 无法确认额度时 `allow` 继续或 `skip` 跳过 | `allow` |
 | `QUOTA_EXHAUSTED_THRESHOLD_PERCENT` | 剩余额度低于或等于该百分比时跳过 | `0` |
+| `KEEP_AWAKE_MODE` | `off`、`during` 或 `always`；非 `off` 时真实定时触发会用 `caffeinate` 防止睡眠 | `off` |
+| `KEEP_AWAKE_SECONDS` | 每次真实触发的防睡眠时长上限 | `900` |
 | `CLAUDE_BIN` | Claude 路径覆盖 | 自动发现 |
 | `CODEX_BIN` | Codex 路径覆盖 | 自动发现 |
 | `JQ_BIN` | `jq` 路径覆盖 | 自动发现 |
@@ -153,6 +175,42 @@ tail -20 logs/status.jsonl | jq
 - `logs/status.jsonl`：5 小时窗口和周额度快照。
 - `logs/raw/`：Claude、Codex 和 status 查询的原始输出。
 - `logs/launchd.out.log` / `logs/launchd.err.log`：launchd 的 stdout/stderr。
+
+## 菜单栏 App
+
+CLI/launchd 仍然是主引擎；菜单栏 App 是单独给初学者使用的 GUI 发布形态，
+提供 macOS 状态栏控制面板，并共用同一份配置、schedule、quota 快照和日志。
+
+本地构建 App：
+
+```sh
+./app/ActivationTimerMenuBar/build-app.sh
+open "dist/Activation Timer.app"
+```
+
+App 不替代脚本，而是调用现有入口：
+
+- `./install.sh app-status`：读取 JSON 状态。
+- `./install.sh install`：保存设置后重新加载 LaunchAgent。
+- `./install.sh run-now`、`quota`、`dry-run`、`uninstall`：对应菜单操作。
+
+如果在 App 里设置 `KEEP_AWAKE_MODE=always`，菜单栏 App 打开期间会保持
+macOS 醒着。即使 App 没开，定时触发仍然照常由 launchd 执行；
+`KEEP_AWAKE_MODE=during` 只保护真实触发运行期间。
+
+## 发布打包
+
+维护者可以用一条命令同时生成两种发布包：
+
+```sh
+./scripts/package-release.sh
+```
+
+`dist/` 下会按人群分开：
+
+- `activation-timer-cli-<version>.tar.gz`：轻量 CLI/launchd 包。
+- `activation-timer-gui-<version>.dmg`：给初学者的 GUI App 安装包。
+- `activation-timer-gui-<version>.zip`：GUI App 备用压缩包。
 
 ## 工作方式
 

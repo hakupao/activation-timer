@@ -2,6 +2,9 @@
 .env
 .omc/
 .omx/
+app/ActivationTimerMenuBar/.build/
+dist/
+.vscode/
 logs/*.log
 logs/*.jsonl
 logs/raw/

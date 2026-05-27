@@ -5,10 +5,14 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${ROOT_DIR}/.env"
 
 if [[ -f "$ENV_FILE" ]]; then
+  # Caller's environment takes precedence over .env values.
+  _saved_exports="$(export -p)"
   set -a
   # shellcheck source=/dev/null
   source "$ENV_FILE"
   set +a
+  eval "$_saved_exports"
+  unset _saved_exports
 fi
 
 set -u
@@ -36,6 +40,8 @@ ENABLE_STATUS_SNAPSHOTS="${ENABLE_STATUS_SNAPSHOTS:-1}"
 ENABLE_QUOTA_PREFLIGHT="${ENABLE_QUOTA_PREFLIGHT:-1}"
 QUOTA_PREFLIGHT_ON_UNKNOWN="${QUOTA_PREFLIGHT_ON_UNKNOWN:-allow}"
 QUOTA_EXHAUSTED_THRESHOLD_PERCENT="${QUOTA_EXHAUSTED_THRESHOLD_PERCENT:-0}"
+KEEP_AWAKE_MODE="${KEEP_AWAKE_MODE:-off}"
+KEEP_AWAKE_SECONDS="${KEEP_AWAKE_SECONDS:-900}"
 RUN_ID="${RUN_ID:-$(date '+%Y%m%d-%H%M%S')-$$}"
 
 MODE="once"
@@ -58,6 +64,8 @@ Environment overrides:
   ENABLE_QUOTA_PREFLIGHT=1
   QUOTA_PREFLIGHT_ON_UNKNOWN=allow
   QUOTA_EXHAUSTED_THRESHOLD_PERCENT=0
+  KEEP_AWAKE_MODE=off
+  KEEP_AWAKE_SECONDS=900
   JQ_BIN=/path/to/jq
   NODE_BIN=/path/to/node
   OMC_BIN=/path/to/omc
@@ -118,6 +126,19 @@ case "$QUOTA_PREFLIGHT_ON_UNKNOWN" in
     ;;
 esac
 
+case "$KEEP_AWAKE_MODE" in
+  off|during|always) ;;
+  *)
+    echo "KEEP_AWAKE_MODE must be off, during, or always" >&2
+    exit 2
+    ;;
+esac
+
+if ! [[ "$KEEP_AWAKE_SECONDS" =~ ^[0-9]+$ ]] || (( 10#$KEEP_AWAKE_SECONDS <= 0 )); then
+  echo "KEEP_AWAKE_SECONDS must be a positive integer" >&2
+  exit 2
+fi
+
 mkdir -p "$LOG_DIR" "$RAW_LOG_DIR" "$RUN_DIR"
 
 timestamp() {
@@ -139,6 +160,22 @@ require_bin() {
     log "ERROR: ${name} binary not found or not executable: ${path:-<empty>}"
     return 1
   fi
+}
+
+maybe_reexec_with_caffeinate() {
+  if [[ "$MODE" != "once" || "$KEEP_AWAKE_MODE" == "off" || "${ACTIVATION_TIMER_CAFFEINATED:-0}" == "1" ]]; then
+    return 0
+  fi
+
+  local caffeinate_bin
+  caffeinate_bin="${CAFFEINATE_BIN:-$(command -v caffeinate 2>/dev/null || true)}"
+  if [[ -z "$caffeinate_bin" || ! -x "$caffeinate_bin" ]]; then
+    log "WARNING: caffeinate not found; continuing without keep-awake protection"
+    return 0
+  fi
+
+  log "Keep-awake enabled mode=${KEEP_AWAKE_MODE} seconds=${KEEP_AWAKE_SECONDS}"
+  ACTIVATION_TIMER_CAFFEINATED=1 exec "$caffeinate_bin" -i -t "$KEEP_AWAKE_SECONDS" "$BASH" "$0" "$@"
 }
 
 run_with_timeout() {
@@ -757,6 +794,10 @@ main() {
   if [[ "$MODE" == "status" ]]; then
     record_status_snapshots
     return $?
+  fi
+
+  if [[ "$MODE" != "dry-run" ]]; then
+    maybe_reexec_with_caffeinate "$@"
   fi
 
   if ! mkdir "$LOCK_DIR" 2>/dev/null; then

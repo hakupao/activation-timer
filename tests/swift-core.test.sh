@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+cat >"$TMP_DIR/main.swift" <<'SWIFT'
+import Foundation
+
+let original = """
+# keep comments
+LABEL=com.activation-timer.ai-window
+SCHEDULE_TIMES=07:00,12:00
+"""
+
+let updated = EnvFile.updating(
+    original,
+    values: [
+        "SCHEDULE_TIMES": "06:15,13:15,21:15",
+        "KEEP_AWAKE_MODE": "during"
+    ]
+)
+
+precondition(updated.contains("# keep comments"))
+precondition(updated.contains("LABEL=com.activation-timer.ai-window"))
+precondition(updated.contains("SCHEDULE_TIMES=\"06:15,13:15,21:15\""))
+precondition(updated.contains("KEEP_AWAKE_MODE=during"))
+
+let schedule = ScheduleFormatter.times(from: "6:05, 13:05,21:05")
+precondition(schedule == ["06:05", "13:05", "21:05"])
+
+let tempRoot = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent(UUID().uuidString)
+let resources = tempRoot.appendingPathComponent("Activation Timer.app/Contents/Resources")
+let bundledRoot = resources.appendingPathComponent("activation-timer")
+let support = tempRoot.appendingPathComponent("Application Support")
+
+try FileManager.default.createDirectory(
+    at: bundledRoot.appendingPathComponent("bin"),
+    withIntermediateDirectories: true
+)
+try "#!/usr/bin/env bash\n".write(
+    to: bundledRoot.appendingPathComponent("bin/activate-ai-window.sh"),
+    atomically: true,
+    encoding: .utf8
+)
+try "#!/usr/bin/env bash\n".write(
+    to: bundledRoot.appendingPathComponent("install.sh"),
+    atomically: true,
+    encoding: .utf8
+)
+try "LABEL=com.activation-timer.ai-window\n".write(
+    to: bundledRoot.appendingPathComponent(".env.example"),
+    atomically: true,
+    encoding: .utf8
+)
+
+let installedRoot = ProjectLocator.findRoot(
+    from: tempRoot.appendingPathComponent("Activation Timer.app/Contents/MacOS"),
+    resourceURL: resources,
+    applicationSupportURL: support
+)
+
+precondition(installedRoot.path == support.appendingPathComponent("Activation Timer/activation-timer").path)
+precondition(FileManager.default.fileExists(atPath: installedRoot.appendingPathComponent("bin/activate-ai-window.sh").path))
+SWIFT
+
+swiftc \
+  "$ROOT_DIR/app/ActivationTimerMenuBar/Sources/ActivationTimerCore/ActivationTimerCore.swift" \
+  "$TMP_DIR/main.swift" \
+  -o "$TMP_DIR/swift-core-test"
+
+"$TMP_DIR/swift-core-test"
+
+echo "swift core test passed"

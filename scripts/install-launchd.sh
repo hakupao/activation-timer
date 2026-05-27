@@ -5,10 +5,14 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${ROOT_DIR}/.env"
 
 if [[ -f "$ENV_FILE" ]]; then
+  # Caller's environment takes precedence over .env values.
+  _saved_exports="$(export -p)"
   set -a
   # shellcheck source=/dev/null
   source "$ENV_FILE"
   set +a
+  eval "$_saved_exports"
+  unset _saved_exports
 fi
 
 set -u
@@ -20,8 +24,7 @@ LOG_DIR="${ROOT_DIR}/logs"
 PLIST_REPO="${LAUNCHD_DIR}/${LABEL}.plist"
 PLIST_INSTALLED="${HOME}/Library/LaunchAgents/${LABEL}.plist"
 PATH_VALUE="${PATH_VALUE:-${HOME}/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin}"
-SCHEDULE_HOURS="${SCHEDULE_HOURS:-7,12,17,22}"
-SCHEDULE_MINUTE="${SCHEDULE_MINUTE:-0}"
+SCHEDULE_TIMES="${SCHEDULE_TIMES:-07:00,12:00,17:00,22:00}"
 
 usage() {
   cat <<'USAGE'
@@ -35,8 +38,7 @@ print-plist Regenerate and print the plist without installing.
 
 Configuration can be set in .env or environment variables:
   LABEL=com.activation-timer.ai-window
-  SCHEDULE_HOURS=7,12,17,22
-  SCHEDULE_MINUTE=0
+  SCHEDULE_TIMES=07:00,12:00,17:00,22:00
   LEGACY_LABELS="old.label.to.remove another.old.label"
 USAGE
 }
@@ -51,50 +53,57 @@ xml_escape() {
 }
 
 validate_schedule() {
-  if ! [[ "$SCHEDULE_MINUTE" =~ ^[0-9]+$ ]] || (( 10#$SCHEDULE_MINUTE < 0 || 10#$SCHEDULE_MINUTE > 59 )); then
-    echo "SCHEDULE_MINUTE must be an integer from 0 to 59" >&2
-    exit 2
-  fi
-
-  local raw_hour trimmed hour_count=0
-  IFS=',' read -r -a hours <<<"$SCHEDULE_HOURS"
-  for raw_hour in "${hours[@]}"; do
-    trimmed="$(printf '%s' "$raw_hour" | tr -d '[:space:]')"
-    if ! [[ "$trimmed" =~ ^[0-9]+$ ]] || (( 10#$trimmed < 0 || 10#$trimmed > 23 )); then
-      echo "SCHEDULE_HOURS must be comma-separated integers from 0 to 23" >&2
+  local raw_time trimmed time_count=0
+  IFS=',' read -r -a times <<<"$SCHEDULE_TIMES"
+  for raw_time in "${times[@]}"; do
+    trimmed="$(printf '%s' "$raw_time" | tr -d '[:space:]')"
+    if ! [[ "$trimmed" =~ ^[0-9]{1,2}:[0-9]{2}$ ]]; then
+      echo "SCHEDULE_TIMES entries must be in HH:MM format" >&2
       exit 2
     fi
-    hour_count=$((hour_count + 1))
+    local hour="${trimmed%%:*}" minute="${trimmed##*:}"
+    if (( 10#$hour < 0 || 10#$hour > 23 )); then
+      echo "Hour must be 0-23 in SCHEDULE_TIMES entry: ${trimmed}" >&2
+      exit 2
+    fi
+    if (( 10#$minute < 0 || 10#$minute > 59 )); then
+      echo "Minute must be 0-59 in SCHEDULE_TIMES entry: ${trimmed}" >&2
+      exit 2
+    fi
+    time_count=$((time_count + 1))
   done
 
-  if (( hour_count == 0 )); then
-    echo "SCHEDULE_HOURS must contain at least one hour" >&2
+  if (( time_count == 0 )); then
+    echo "SCHEDULE_TIMES must contain at least one time" >&2
     exit 2
   fi
 }
 
 render_schedule_intervals() {
-  local raw_hour trimmed
-  IFS=',' read -r -a hours <<<"$SCHEDULE_HOURS"
-  for raw_hour in "${hours[@]}"; do
-    trimmed="$(printf '%s' "$raw_hour" | tr -d '[:space:]')"
+  local raw_time trimmed hour minute
+  IFS=',' read -r -a times <<<"$SCHEDULE_TIMES"
+  for raw_time in "${times[@]}"; do
+    trimmed="$(printf '%s' "$raw_time" | tr -d '[:space:]')"
+    hour="${trimmed%%:*}"
+    minute="${trimmed##*:}"
     cat <<PLIST
     <dict>
       <key>Hour</key>
-      <integer>$((10#$trimmed))</integer>
+      <integer>$((10#$hour))</integer>
       <key>Minute</key>
-      <integer>$((10#$SCHEDULE_MINUTE))</integer>
+      <integer>$((10#$minute))</integer>
     </dict>
 PLIST
   done
 }
 
 schedule_description() {
-  local raw_hour trimmed output="" sep=""
-  IFS=',' read -r -a hours <<<"$SCHEDULE_HOURS"
-  for raw_hour in "${hours[@]}"; do
-    trimmed="$(printf '%s' "$raw_hour" | tr -d '[:space:]')"
-    output="${output}${sep}$(printf '%02d:%02d' "$((10#$trimmed))" "$((10#$SCHEDULE_MINUTE))")"
+  local raw_time trimmed output="" sep=""
+  IFS=',' read -r -a times <<<"$SCHEDULE_TIMES"
+  for raw_time in "${times[@]}"; do
+    trimmed="$(printf '%s' "$raw_time" | tr -d '[:space:]')"
+    local hour="${trimmed%%:*}" minute="${trimmed##*:}"
+    output="${output}${sep}$(printf '%02d:%02d' "$((10#$hour))" "$((10#$minute))")"
     sep=", "
   done
   printf '%s' "$output"
