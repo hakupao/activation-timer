@@ -1,4 +1,4 @@
-import ActivationTimerCore
+import StokerCore
 import SwiftUI
 
 // MARK: - Tab
@@ -17,7 +17,7 @@ enum MainTab: String, CaseIterable, Identifiable {
 // MARK: - Main View
 
 struct MainView: View {
-    @ObservedObject var model: ActivationTimerAppModel
+    @ObservedObject var model: StokerAppModel
 
     var body: some View {
         MainPanel(model: model, root: model.root)
@@ -25,14 +25,14 @@ struct MainView: View {
 }
 
 private struct MainPanel: View {
-    @ObservedObject var model: ActivationTimerAppModel
+    @ObservedObject var model: StokerAppModel
     @StateObject private var logStore: LogStore
     @State private var selectedTab = MainTab.activity
     @State private var langRefresh = false
     @AppStorage("hideOnboarding") private var hideOnboarding = false
     @State private var showOnboarding = false
 
-    init(model: ActivationTimerAppModel, root: URL) {
+    init(model: StokerAppModel, root: URL) {
         self._model = ObservedObject(wrappedValue: model)
         self._logStore = StateObject(wrappedValue: LogStore(root: root))
     }
@@ -93,7 +93,7 @@ private struct MainPanel: View {
 // MARK: - Unified Header
 
 private struct UnifiedHeader: View {
-    @ObservedObject var model: ActivationTimerAppModel
+    @ObservedObject var model: StokerAppModel
     @Binding var selectedTab: MainTab
     @Binding var langRefresh: Bool
 
@@ -105,7 +105,7 @@ private struct UnifiedHeader: View {
                 AppIconBadge()
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Activation Timer")
+                    Text("Stoker")
                         .font(.system(size: 18, weight: .bold, design: .rounded))
                     if let state = model.state {
                         Text(state.schedule.times.joined(separator: " · "))
@@ -250,7 +250,7 @@ private struct QuotaMiniBar: View {
 // MARK: - Settings Tab Content
 
 struct SettingsTabContent: View {
-    @ObservedObject var model: ActivationTimerAppModel
+    @ObservedObject var model: StokerAppModel
 
     var body: some View {
         ScrollView {
@@ -268,7 +268,7 @@ struct SettingsTabContent: View {
 // MARK: - Bottom Action Bar
 
 struct BottomActionBar: View {
-    @ObservedObject var model: ActivationTimerAppModel
+    @ObservedObject var model: StokerAppModel
     @ObservedObject var logStore: LogStore
     var selectedTab: MainTab
 
@@ -343,7 +343,7 @@ struct BottomActionBar: View {
     private func exportCSV() {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.commaSeparatedText]
-        panel.nameFieldStringValue = "activation-timer-export.csv"
+        panel.nameFieldStringValue = "stoker-export.csv"
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
             try? logStore.exportCSV().write(to: url, atomically: true, encoding: .utf8)

@@ -1,20 +1,22 @@
 [English](README.md) | [中文](README_CN.md)
 
-# Activation Timer
+# Stoker
 
 > A tiny macOS scheduler that sends low-cost Claude Code and Codex check-ins at fixed times, then records activation logs, per-run token usage, and quota status snapshots.
 
-[![CI](https://github.com/hakupao/activation-timer/actions/workflows/ci.yml/badge.svg)](https://github.com/hakupao/activation-timer/actions/workflows/ci.yml)
+[![CI](https://github.com/hakupao/stoker/actions/workflows/ci.yml/badge.svg)](https://github.com/hakupao/stoker/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ## About
 
-Activation Timer is a small Bash-based utility for people who want predictable Claude Code and Codex usage-window start times. It installs a macOS `launchd` agent that runs in a dedicated lightweight folder, asks each CLI to reply `READY`, and keeps the prompt intentionally small so it does not scan real projects or modify files.
+Stoker is a small Bash-based utility for people who want predictable Claude Code and Codex usage-window start times. It installs a macOS `launchd` agent that runs in a dedicated lightweight folder, asks each CLI to reply `READY`, and keeps the prompt intentionally small so it does not scan real projects or modify files.
+
+The name is a nod to a *stoker* — the crew member who keeps a furnace fed so the fire never goes out. That is exactly what this tool does for your AI usage windows: it keeps them lit on a schedule you choose.
 
 The default schedule is `07:00`, `12:00`, `17:00`, and `22:00` local macOS time.
 
 <p align="center">
-  <img src="docs/images/activity-en.png" width="460" alt="Activation Timer — Activity dashboard" />
+  <img src="docs/images/activity-en.png" width="460" alt="Stoker — Activity dashboard" />
 </p>
 
 ## Features
@@ -52,8 +54,8 @@ Choose one distribution:
 ### CLI / launchd
 
 ```sh
-git clone https://github.com/hakupao/activation-timer.git
-cd activation-timer
+git clone https://github.com/hakupao/stoker.git
+cd stoker
 cp .env.example .env
 ./install.sh check
 ./install.sh dry-run
@@ -64,11 +66,11 @@ cp .env.example .env
 
 ### Menu bar app
 
-Download the GUI DMG, drag `Activation Timer.app` to `Applications`, open it,
+Download the GUI DMG, drag `Stoker.app` to `Applications`, open it,
 then use the status-bar menu to install/reload the schedule, refresh quota, run
 once, pause the schedule, and edit settings. The app bundles the same CLI engine
 and installs its working copy under
-`~/Library/Application Support/Activation Timer/activation-timer`.
+`~/Library/Application Support/Stoker/stoker`.
 
 See [INSTALL.md](INSTALL.md) for complete beginner and advanced installation
 steps.
@@ -140,7 +142,7 @@ Copy `.env.example` to `.env` and adjust values:
 
 | Variable | Description | Default |
 | --- | --- | --- |
-| `LABEL` | macOS LaunchAgent label | `com.activation-timer.ai-window` |
+| `LABEL` | macOS LaunchAgent label | `com.stoker.ai-window` |
 | `SCHEDULE_TIMES` | Comma-separated `HH:MM` schedule entries; each time point is independent | `"07:00,12:00,17:00,22:00"` |
 | `ACTIVATION_TOOL` | `all`, `claude`, or `codex` | `all` |
 | `ACTIVATION_PROMPT` | Low-cost prompt sent to the CLIs | `Reply exactly READY...` |
@@ -195,14 +197,14 @@ Highlights:
 - **Export run history to CSV.**
 
 <p align="center">
-  <img src="docs/images/settings-en.png" width="460" alt="Activation Timer — Settings tab" />
+  <img src="docs/images/settings-en.png" width="460" alt="Stoker — Settings tab" />
 </p>
 
 Build the app bundle locally:
 
 ```sh
-./app/ActivationTimerMenuBar/build-app.sh
-open "dist/Activation Timer.app"
+./app/StokerMenuBar/build-app.sh
+open "dist/Stoker.app"
 ```
 
 The app calls the existing scripts instead of replacing them:
@@ -225,9 +227,9 @@ Maintainers can build both publishable artifacts with one command:
 
 The output under `dist/` is split by audience:
 
-- `activation-timer-cli-<version>.tar.gz`: lightweight CLI/launchd package.
-- `activation-timer-gui-<version>.dmg`: GUI app package for beginner users.
-- `activation-timer-gui-<version>.zip`: fallback GUI app archive.
+- `stoker-cli-<version>.tar.gz`: lightweight CLI/launchd package.
+- `stoker-gui-<version>.dmg`: GUI app package for beginner users.
+- `stoker-gui-<version>.zip`: fallback GUI app archive.
 
 ## How It Works
 
@@ -295,13 +297,13 @@ The app calls scripts through `Process()` (Foundation), reads stdout, and decode
 
 ### Where Does Activation Run?
 
-Both CLIs are invoked inside the **activation-timer project directory itself** — never inside your real projects. This is a lightweight folder that contains only scripts and logs, so there is nothing for the CLIs to scan or modify.
+Both CLIs are invoked inside the **stoker project directory itself** — never inside your real projects. This is a lightweight folder that contains only scripts and logs, so there is nothing for the CLIs to scan or modify.
 
 | Installation method | Working directory | Who creates it |
 | --- | --- | --- |
-| CLI (`git clone`) | The cloned repo, e.g. `~/activation-timer` | You, when you clone |
+| CLI (`git clone`) | The cloned repo, e.g. `~/stoker` | You, when you clone |
 | Menu bar app (dev build) | Same cloned repo | Same |
-| Menu bar app (.app / DMG) | `~/Library/Application Support/Activation Timer/activation-timer/` | App creates it automatically on first launch by copying scripts from the app bundle |
+| Menu bar app (.app / DMG) | `~/Library/Application Support/Stoker/stoker/` | App creates it automatically on first launch by copying scripts from the app bundle |
 
 How the directory is resolved:
 
@@ -313,14 +315,14 @@ The installer writes an absolute-path plist for macOS `launchd` and places it un
 ### Project Structure
 
 ```text
-activation-timer/
+stoker/
 ├── bin/
 │   ├── activate-ai-window.sh   ← activation runner
 │   └── activation-state.sh     ← JSON state for the app
 ├── scripts/
 │   └── install-launchd.sh      ← launchd install/uninstall
 ├── app/
-│   └── ActivationTimerMenuBar/ ← SwiftUI menu bar app
+│   └── StokerMenuBar/ ← SwiftUI menu bar app
 ├── launchd/                    ← generated plist (git-ignored)
 ├── logs/                       ← generated logs
 │   ├── activation.log

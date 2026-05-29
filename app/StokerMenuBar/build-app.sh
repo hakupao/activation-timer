@@ -3,9 +3,9 @@ set -euo pipefail
 
 PACKAGE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${PACKAGE_DIR}/../.." && pwd)"
-APP_DIR="${ROOT_DIR}/dist/Activation Timer.app"
-EXECUTABLE="${PACKAGE_DIR}/.build/release/ActivationTimerMenuBar"
-ENGINE_DIR="${APP_DIR}/Contents/Resources/activation-timer"
+APP_DIR="${ROOT_DIR}/dist/Stoker.app"
+EXECUTABLE="${PACKAGE_DIR}/.build/release/StokerMenuBar"
+ENGINE_DIR="${APP_DIR}/Contents/Resources/stoker"
 ICON_DIR="${APP_DIR}/Contents/Resources"
 
 cd "$PACKAGE_DIR"
@@ -13,7 +13,7 @@ swift build -c release
 
 rm -rf "$APP_DIR"
 mkdir -p "${APP_DIR}/Contents/MacOS" "$ENGINE_DIR"
-cp "$EXECUTABLE" "${APP_DIR}/Contents/MacOS/ActivationTimerMenuBar"
+cp "$EXECUTABLE" "${APP_DIR}/Contents/MacOS/StokerMenuBar"
 "${ROOT_DIR}/scripts/generate-app-icon.sh" "$ICON_DIR"
 cp "${ICON_DIR}/icon_512x512@2x.png" "${ROOT_DIR}/dist/AppIcon-preview.png"
 rm -rf "${ICON_DIR}/AppIcon.iconset" "${ICON_DIR}/icon_512x512@2x.png"
@@ -60,15 +60,15 @@ cat >"${APP_DIR}/Contents/Info.plist" <<'PLIST'
   <key>CFBundleDevelopmentRegion</key>
   <string>en</string>
   <key>CFBundleExecutable</key>
-  <string>ActivationTimerMenuBar</string>
+  <string>StokerMenuBar</string>
   <key>CFBundleIdentifier</key>
-  <string>com.activation-timer.menu-bar</string>
+  <string>com.stoker.menu-bar</string>
   <key>CFBundleIconFile</key>
   <string>AppIcon</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>Activation Timer</string>
+  <string>Stoker</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

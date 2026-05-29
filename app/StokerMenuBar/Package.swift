@@ -3,21 +3,21 @@
 import PackageDescription
 
 let package = Package(
-    name: "ActivationTimerMenuBar",
+    name: "StokerMenuBar",
     platforms: [
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "ActivationTimerMenuBar", targets: ["ActivationTimerMenuBar"])
+        .executable(name: "StokerMenuBar", targets: ["StokerMenuBar"])
     ],
     targets: [
         .executableTarget(
-            name: "ActivationTimerMenuBar",
-            dependencies: ["ActivationTimerCore"],
+            name: "StokerMenuBar",
+            dependencies: ["StokerCore"],
             linkerSettings: [
                 .linkedFramework("ServiceManagement")
             ]
         ),
-        .target(name: "ActivationTimerCore")
+        .target(name: "StokerCore")
     ]
 )

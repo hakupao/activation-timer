@@ -8,7 +8,7 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 mkdir -p "$TMP_DIR/logs"
 
 cat >"$TMP_DIR/.env" <<'ENV'
-LABEL=com.example.activation-timer.test
+LABEL=com.example.stoker.test
 SCHEDULE_TIMES="06:15,13:15,21:15"
 ACTIVATION_TOOL=codex
 ENABLE_STATUS_SNAPSHOTS=0
@@ -27,15 +27,15 @@ cat >"$TMP_DIR/logs/usage.jsonl" <<'JSONL'
 JSONL
 
 json="$(
-  ACTIVATION_TIMER_ROOT="$TMP_DIR" \
-  ACTIVATION_TIMER_SKIP_LAUNCHCTL=1 \
+  STOKER_ROOT="$TMP_DIR" \
+  STOKER_SKIP_LAUNCHCTL=1 \
   "$ROOT_DIR/bin/activation-state.sh" --json
 )"
 
 jq -e '
   .installed == false
   and .running == false
-  and .label == "com.example.activation-timer.test"
+  and .label == "com.example.stoker.test"
   and .schedule.times == ["06:15", "13:15", "21:15"]
   and .config.activation_tool == "codex"
   and .config.enable_status_snapshots == false

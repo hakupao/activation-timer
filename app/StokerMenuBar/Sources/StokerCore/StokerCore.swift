@@ -69,7 +69,7 @@ public enum ProjectLocator {
         resourceURL: URL? = Bundle.main.resourceURL,
         applicationSupportURL: URL? = nil
     ) -> URL {
-        if let override = ProcessInfo.processInfo.environment["ACTIVATION_TIMER_ROOT"], !override.isEmpty {
+        if let override = ProcessInfo.processInfo.environment["STOKER_ROOT"], !override.isEmpty {
             return URL(fileURLWithPath: override)
         }
 
@@ -105,13 +105,13 @@ public enum ProjectLocator {
             return nil
         }
 
-        let bundled = resourceURL.appendingPathComponent("activation-timer")
+        let bundled = resourceURL.appendingPathComponent("stoker")
         guard fileManager.fileExists(atPath: bundled.appendingPathComponent("bin/activate-ai-window.sh").path) else {
             return nil
         }
 
         let supportBase = applicationSupportURL ?? fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let installed = supportBase.appendingPathComponent("Activation Timer/activation-timer")
+        let installed = supportBase.appendingPathComponent("Stoker/stoker")
         do {
             try syncBundledRoot(from: bundled, to: installed)
             return installed

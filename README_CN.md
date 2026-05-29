@@ -1,20 +1,20 @@
 [English](README.md) | [中文](README_CN.md)
 
-# Activation Timer
+# Stoker
 
 > 一个很小的 macOS 定时器：按固定时间轻量触发 Claude Code 和 Codex，并记录触发日志、单次 usage、5 小时窗口和周额度状态。
 
-[![CI](https://github.com/hakupao/activation-timer/actions/workflows/ci.yml/badge.svg)](https://github.com/hakupao/activation-timer/actions/workflows/ci.yml)
+[![CI](https://github.com/hakupao/stoker/actions/workflows/ci.yml/badge.svg)](https://github.com/hakupao/stoker/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ## 项目简介
 
-Activation Timer 适合想把 Claude Code / Codex 用量窗口固定到自己作息时间的人。它通过 macOS `launchd` 定时运行，在一个专用轻量目录里让两个 CLI 只回复 `READY`，并明确要求不要扫描真实项目、不要运行工具、不要修改文件。
+Stoker（司炉——锅炉房里负责不停添煤、让炉火长燃不灭的人）适合想把 Claude Code / Codex 用量窗口固定到自己作息时间的人。它就像替你守着那簇火：通过 macOS `launchd` 定时运行，在一个专用轻量目录里让两个 CLI 只回复 `READY`，并明确要求不要扫描真实项目、不要运行工具、不要修改文件。
 
 默认触发时间是本机时间 `07:00`、`12:00`、`17:00`、`22:00`。
 
 <p align="center">
-  <img src="docs/images/activity-zh.png" width="460" alt="Activation Timer — 活动仪表盘" />
+  <img src="docs/images/activity-zh.png" width="460" alt="Stoker — 活动仪表盘" />
 </p>
 
 ## 功能
@@ -50,8 +50,8 @@ Activation Timer 适合想把 Claude Code / Codex 用量窗口固定到自己作
 ### CLI / launchd
 
 ```sh
-git clone https://github.com/hakupao/activation-timer.git
-cd activation-timer
+git clone https://github.com/hakupao/stoker.git
+cd stoker
 cp .env.example .env
 ./install.sh check
 ./install.sh dry-run
@@ -62,10 +62,10 @@ cp .env.example .env
 
 ### 菜单栏 App
 
-下载 GUI DMG，把 `Activation Timer.app` 拖到 `Applications` 后打开，然后在
+下载 GUI DMG，把 `Stoker.app` 拖到 `Applications` 后打开，然后在
 状态栏菜单里安装/重载 schedule、刷新 quota、手动触发、暂停定时器和编辑设置。
 App 内置同一套 CLI engine，并会把工作副本放到
-`~/Library/Application Support/Activation Timer/activation-timer`。
+`~/Library/Application Support/Stoker/stoker`。
 
 完整的新手和高手安装步骤见 [INSTALL_CN.md](INSTALL_CN.md)。
 
@@ -136,7 +136,7 @@ codex job skipped by quota preflight reason=quota_exhausted
 
 | 变量 | 说明 | 默认值 |
 | --- | --- | --- |
-| `LABEL` | macOS LaunchAgent label | `com.activation-timer.ai-window` |
+| `LABEL` | macOS LaunchAgent label | `com.stoker.ai-window` |
 | `SCHEDULE_TIMES` | 逗号分隔的 `HH:MM` 触发时间，每个时间点相互独立 | `"07:00,12:00,17:00,22:00"` |
 | `ACTIVATION_TOOL` | `all`、`claude` 或 `codex` | `all` |
 | `ACTIVATION_PROMPT` | 发送给 CLI 的低消耗 prompt | `Reply exactly READY...` |
@@ -190,14 +190,14 @@ CLI/launchd 仍然是主引擎；菜单栏 App 是单独给初学者使用的 GU
 - **运行记录可导出 CSV。**
 
 <p align="center">
-  <img src="docs/images/settings-zh.png" width="460" alt="Activation Timer — 设置页" />
+  <img src="docs/images/settings-zh.png" width="460" alt="Stoker — 设置页" />
 </p>
 
 本地构建 App：
 
 ```sh
-./app/ActivationTimerMenuBar/build-app.sh
-open "dist/Activation Timer.app"
+./app/StokerMenuBar/build-app.sh
+open "dist/Stoker.app"
 ```
 
 App 不替代脚本，而是调用现有入口：
@@ -220,9 +220,9 @@ macOS 醒着。即使 App 没开，定时触发仍然照常由 launchd 执行；
 
 `dist/` 下会按人群分开：
 
-- `activation-timer-cli-<version>.tar.gz`：轻量 CLI/launchd 包。
-- `activation-timer-gui-<version>.dmg`：给初学者的 GUI App 安装包。
-- `activation-timer-gui-<version>.zip`：GUI App 备用压缩包。
+- `stoker-cli-<version>.tar.gz`：轻量 CLI/launchd 包。
+- `stoker-gui-<version>.dmg`：给初学者的 GUI App 安装包。
+- `stoker-gui-<version>.zip`：GUI App 备用压缩包。
 
 ## 工作方式
 
@@ -290,13 +290,13 @@ App 通过 Foundation 的 `Process()` 调用脚本，读取 stdout，再用 `JSO
 
 ### 激活在哪个目录运行？
 
-两个 CLI 都在 **activation-timer 项目目录本身**内被调用——永远不会进入你的真实项目。这是一个只包含脚本和日志的轻量目录，CLI 没有东西可以扫描或修改。
+两个 CLI 都在 **stoker 项目目录本身**内被调用——永远不会进入你的真实项目。这是一个只包含脚本和日志的轻量目录，CLI 没有东西可以扫描或修改。
 
 | 安装方式 | 工作目录 | 谁创建的 |
 | --- | --- | --- |
-| CLI（`git clone`） | 你 clone 的仓库，如 `~/activation-timer` | 你手动 clone |
+| CLI（`git clone`） | 你 clone 的仓库，如 `~/stoker` | 你手动 clone |
 | 菜单栏 App（开发构建） | 同上，复用源码目录 | 同上 |
-| 菜单栏 App（.app / DMG） | `~/Library/Application Support/Activation Timer/activation-timer/` | App 首次启动时自动从 bundle 拷贝脚本 |
+| 菜单栏 App（.app / DMG） | `~/Library/Application Support/Stoker/stoker/` | App 首次启动时自动从 bundle 拷贝脚本 |
 
 目录是怎么找到的：
 
@@ -308,14 +308,14 @@ App 通过 Foundation 的 `Process()` 调用脚本，读取 stdout，再用 `JSO
 ### 项目结构
 
 ```text
-activation-timer/
+stoker/
 ├── bin/
 │   ├── activate-ai-window.sh   ← 激活执行器
 │   └── activation-state.sh     ← 给 App 用的 JSON 状态
 ├── scripts/
 │   └── install-launchd.sh      ← launchd 安装/卸载
 ├── app/
-│   └── ActivationTimerMenuBar/ ← SwiftUI 菜单栏 App
+│   └── StokerMenuBar/ ← SwiftUI 菜单栏 App
 ├── launchd/                    ← 生成的 plist（git ignore）
 ├── logs/                       ← 生成的日志
 │   ├── activation.log

@@ -4,9 +4,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="${VERSION:-0.2.0}"
 DIST_DIR="${ROOT_DIR}/dist"
-CLI_NAME="activation-timer-cli-${VERSION}"
-GUI_NAME="activation-timer-gui-${VERSION}"
-APP_DIR="${DIST_DIR}/Activation Timer.app"
+CLI_NAME="stoker-cli-${VERSION}"
+GUI_NAME="stoker-gui-${VERSION}"
+APP_DIR="${DIST_DIR}/Stoker.app"
 CLI_TARBALL="${DIST_DIR}/${CLI_NAME}.tar.gz"
 GUI_ZIP="${DIST_DIR}/${GUI_NAME}.zip"
 GUI_DMG="${DIST_DIR}/${GUI_NAME}.dmg"
@@ -28,7 +28,7 @@ required_paths=(
   "bin/activate-ai-window.sh"
   "bin/activation-state.sh"
   "scripts/install-launchd.sh"
-  "app/ActivationTimerMenuBar/build-app.sh"
+  "app/StokerMenuBar/build-app.sh"
   "README.md"
   "README_CN.md"
   "INSTALL.md"
@@ -82,7 +82,7 @@ build_cli_archive() {
 }
 
 build_gui_package() {
-  "${ROOT_DIR}/app/ActivationTimerMenuBar/build-app.sh"
+  "${ROOT_DIR}/app/StokerMenuBar/build-app.sh"
 
   rm -f "$GUI_ZIP" "$GUI_DMG"
   ditto -c -k --norsrc --keepParent "$APP_DIR" "$GUI_ZIP"
@@ -93,7 +93,7 @@ build_gui_package() {
     cp -R "$APP_DIR" "$DMG_STAGING/"
     ln -s /Applications "${DMG_STAGING}/Applications"
     hdiutil create \
-      -volname "Activation Timer" \
+      -volname "Stoker" \
       -srcfolder "$DMG_STAGING" \
       -ov \
       -format UDZO \

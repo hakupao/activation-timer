@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Project rename — Activation Timer is now Stoker
+- Renamed the project and app from **Activation Timer** to **Stoker** (Chinese name 司炉 — the person who keeps a furnace fed so the fire never goes out).
+- Bundle identifier changed from `com.activation-timer.menu-bar` to `com.stoker.menu-bar`; the LaunchAgent label changed from `com.activation-timer.ai-window` to `com.stoker.ai-window`.
+- The menu bar app's working copy moved from `~/Library/Application Support/Activation Timer/` to `~/Library/Application Support/Stoker/`.
+- Upgrading in place automatically boots out the old `com.activation-timer.ai-window` LaunchAgent (wired into `LEGACY_LABELS`); reinstall/reload the schedule after updating.
+- Old data under `~/Library/Application Support/Activation Timer/` is left untouched — remove it manually once you have confirmed the new install works.
+
 ## 0.2.0 - 2026-05-29
 
 ### Menu bar app

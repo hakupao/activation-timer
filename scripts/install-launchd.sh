@@ -17,8 +17,10 @@ fi
 
 set -u
 
-LABEL="${LABEL:-com.activation-timer.ai-window}"
-LEGACY_LABELS="${LEGACY_LABELS:-}"
+LABEL="${LABEL:-com.stoker.ai-window}"
+# Boot out agents from the pre-Stoker rename (formerly "Activation Timer") so an
+# upgrade in place cleanly replaces the old LaunchAgent instead of leaving it loaded.
+LEGACY_LABELS="${LEGACY_LABELS:-com.activation-timer.ai-window}"
 LAUNCHD_DIR="${ROOT_DIR}/launchd"
 LOG_DIR="${ROOT_DIR}/logs"
 PLIST_REPO="${LAUNCHD_DIR}/${LABEL}.plist"
@@ -37,7 +39,7 @@ run-now     Trigger the loaded agent immediately.
 print-plist Regenerate and print the plist without installing.
 
 Configuration can be set in .env or environment variables:
-  LABEL=com.activation-timer.ai-window
+  LABEL=com.stoker.ai-window
   SCHEDULE_TIMES=07:00,12:00,17:00,22:00
   LEGACY_LABELS="old.label.to.remove another.old.label"
 USAGE

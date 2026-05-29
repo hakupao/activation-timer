@@ -2,7 +2,7 @@
 .env
 .omc/
 .omx/
-app/ActivationTimerMenuBar/.build/
+app/StokerMenuBar/.build/
 dist/
 .vscode/
 logs/*.log
