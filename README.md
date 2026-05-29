@@ -14,7 +14,7 @@ Activation Timer is a small Bash-based utility for people who want predictable C
 The default schedule is `07:00`, `12:00`, `17:00`, and `22:00` local macOS time.
 
 <p align="center">
-  <img src="docs/images/settings-en.png" width="420" alt="Activation Timer — English UI" />
+  <img src="docs/images/activity-en.png" width="460" alt="Activation Timer — Activity dashboard" />
 </p>
 
 ## Features
@@ -185,6 +185,18 @@ Log files:
 The CLI/launchd workflow remains the primary engine. The optional menu bar app
 is a separate beginner-friendly distribution that adds a macOS status-bar
 control surface for the same configuration, schedule, quota snapshots, and logs.
+
+Highlights:
+
+- **Activity dashboard** — per-tool quota-trend chart (5-hour / weekly), a run-history timeline with expandable per-run details (tokens, cost, duration, session), and summary stats with date-range / status / tool filters.
+- **Settings** — edit independent schedule times, toggle Claude/Codex, and configure advanced options (quota preflight, post-run snapshots, keep-awake, launch at login).
+- **Bilingual UI** with an EN / 中 switch; the appearance follows the system Light/Dark setting.
+- **Environment Check** that detects required and optional CLI tools.
+- **Export run history to CSV.**
+
+<p align="center">
+  <img src="docs/images/settings-en.png" width="460" alt="Activation Timer — Settings tab" />
+</p>
 
 Build the app bundle locally:
 

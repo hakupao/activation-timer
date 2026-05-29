@@ -477,7 +477,7 @@ send({
   id: 1,
   method: "initialize",
   params: {
-    clientInfo: { name: "activation-timer", version: "0.1.0" },
+    clientInfo: { name: "activation-timer", version: "0.2.0" },
     capabilities: null,
   },
 });

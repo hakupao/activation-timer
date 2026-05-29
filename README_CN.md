@@ -14,7 +14,7 @@ Activation Timer 适合想把 Claude Code / Codex 用量窗口固定到自己作
 默认触发时间是本机时间 `07:00`、`12:00`、`17:00`、`22:00`。
 
 <p align="center">
-  <img src="docs/images/settings-zh.png" width="420" alt="Activation Timer — 中文界面" />
+  <img src="docs/images/activity-zh.png" width="460" alt="Activation Timer — 活动仪表盘" />
 </p>
 
 ## 功能
@@ -180,6 +180,18 @@ tail -20 logs/status.jsonl | jq
 
 CLI/launchd 仍然是主引擎；菜单栏 App 是单独给初学者使用的 GUI 发布形态，
 提供 macOS 状态栏控制面板，并共用同一份配置、schedule、quota 快照和日志。
+
+亮点：
+
+- **活动仪表盘** —— 按工具的额度趋势图（5 小时 / 每周）、可展开查看单次详情（token、费用、耗时、session）的运行记录时间线，以及带「时间范围 / 状态 / 工具」筛选的统计条。
+- **设置** —— 编辑相互独立的多个触发时间、开关 Claude/Codex、配置高级选项（额度预检、运行后快照、防睡眠、开机自启）。
+- **双语界面**，右上角 EN / 中 一键切换；主题随系统明暗自动适配。
+- **环境检查**，自动检测必需与可选的命令行工具。
+- **运行记录可导出 CSV。**
+
+<p align="center">
+  <img src="docs/images/settings-zh.png" width="460" alt="Activation Timer — 设置页" />
+</p>
 
 本地构建 App：
 
