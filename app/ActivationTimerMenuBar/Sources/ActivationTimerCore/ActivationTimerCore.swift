@@ -124,6 +124,13 @@ public enum ProjectLocator {
         let fileManager = FileManager.default
         try fileManager.createDirectory(at: installed, withIntermediateDirectories: true)
 
+        let versionFile = installed.appendingPathComponent(".bundled-version")
+        let bundleVersion = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
+        if let existing = try? String(contentsOf: versionFile, encoding: .utf8),
+           existing.trimmingCharacters(in: .whitespacesAndNewlines) == bundleVersion {
+            return
+        }
+
         for directory in ["bin", "scripts"] {
             let source = bundled.appendingPathComponent(directory)
             guard fileManager.fileExists(atPath: source.path) else {
@@ -156,6 +163,8 @@ public enum ProjectLocator {
             }
             try fileManager.copyItem(at: source, to: destination)
         }
+
+        try? bundleVersion.write(to: versionFile, atomically: true, encoding: .utf8)
     }
 }
 

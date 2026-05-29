@@ -12,7 +12,8 @@ struct ActivationTimerMenuBarApp: App {
     var body: some Scene {
         MenuBarExtra {
             MenuContentView(model: model) {
-                openWindow(id: "settings")
+                openWindow(id: "main")
+                NSApp.activate(ignoringOtherApps: true)
             }
             .task {
                 await model.refresh()
@@ -22,10 +23,10 @@ struct ActivationTimerMenuBarApp: App {
         }
         .menuBarExtraStyle(.menu)
 
-        Window("Activation Timer", id: "settings") {
-            SettingsView(model: model)
+        Window("Activation Timer", id: "main") {
+            MainView(model: model)
         }
-        .defaultSize(width: 400, height: 620)
+        .defaultSize(width: 760, height: 720)
     }
 }
 
@@ -99,9 +100,10 @@ final class ActivationTimerAppModel: ObservableObject {
     }
 
     func openInstallGuide() {
-        let zhGuide = root.appendingPathComponent("INSTALL_CN.md")
-        if FileManager.default.fileExists(atPath: zhGuide.path) {
-            NSWorkspace.shared.open(zhGuide)
+        let file = AppLanguage.current == .zh ? "INSTALL_CN.md" : "INSTALL.md"
+        let guide = root.appendingPathComponent(file)
+        if FileManager.default.fileExists(atPath: guide.path) {
+            NSWorkspace.shared.open(guide)
             return
         }
         NSWorkspace.shared.open(root.appendingPathComponent("INSTALL.md"))
@@ -254,7 +256,22 @@ enum DS {
 
     static let activeGreen = Color(red: 0.20, green: 0.78, blue: 0.35)
     static let activeBg = Color(red: 0.12, green: 0.22, blue: 0.14)
-    static let windowActiveTint = Color(red: 0.06, green: 0.12, blue: 0.08)
+
+    // Subtle "schedule active" window wash that follows the system appearance:
+    // a faint green in Light mode, a deep green in Dark mode.
+    static let windowActiveTint = Color(nsColor: NSColor(name: nil) { appearance in
+        let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        return isDark
+            ? NSColor(srgbRed: 0.09, green: 0.15, blue: 0.11, alpha: 1)
+            : NSColor(srgbRed: 0.90, green: 0.96, blue: 0.92, alpha: 1)
+    })
+
+    // Adaptive text tiers — these resolve to the correct Light/Dark label colors
+    // automatically, so secondary text stays legible in either appearance.
+    static let textPrimary = Color(nsColor: .labelColor)
+    static let textSecondary = Color(nsColor: .secondaryLabelColor)
+    static let textMuted = Color(nsColor: .tertiaryLabelColor)
+    static let hairline = Color(nsColor: .separatorColor)
 
     static let accentBlue = Color(red: 0.25, green: 0.52, blue: 0.96)
     static let accentOrange = Color(red: 0.95, green: 0.62, blue: 0.22)
@@ -333,87 +350,52 @@ struct MenuContentView: View {
     }
 }
 
-// MARK: - Settings Window
-
-struct SettingsView: View {
-    @ObservedObject var model: ActivationTimerAppModel
-    @AppStorage("hideOnboarding") private var hideOnboarding = false
-    @State private var showOnboarding = false
-
-    private var isOn: Bool { model.state?.installed == true }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            SettingsHeader(model: model)
-
-            ScrollView {
-                VStack(spacing: 14) {
-                    StatusCard(model: model)
-                    ScheduleCard(model: model)
-                    ToolCard(model: model)
-                    AdvancedSection(model: model)
-                    ActionBar(model: model)
-                }
-                .padding(.horizontal, 18)
-                .padding(.vertical, 14)
-            }
-        }
-        .frame(minWidth: 380, minHeight: 480)
-        .background(
-            (isOn ? DS.windowActiveTint : Color(nsColor: .windowBackgroundColor))
-                .animation(.easeInOut(duration: 0.4), value: isOn)
-        )
-        .sheet(isPresented: $showOnboarding) {
-            OnboardingView(isPresented: $showOnboarding)
-        }
-        .onAppear {
-            if !hideOnboarding {
-                Task {
-                    let missing = await ToolChecker.checkMissingTools()
-                    if !missing.isEmpty {
-                        showOnboarding = true
-                    }
-                }
-            }
-        }
-        .onChange(of: model.requestToolCheck) { _, newValue in
-            if newValue {
-                showOnboarding = true
-                model.requestToolCheck = false
-            }
-        }
-    }
-}
-
 // MARK: - Tool Checker
 
 enum ToolChecker {
+    enum ToolCategory: Sendable { case required, optional }
+
     struct ToolInfo: Sendable {
         var name: String
         var found: Bool
+        var builtIn: Bool
+        var category: ToolCategory
         var installHint: String
+        var toolDescription: String
     }
 
-    static let requiredTools: [(name: String, hint: String)] = [
-        ("claude", "npm i -g @anthropic-ai/claude-code"),
-        ("codex",  "npm i -g @openai/codex"),
-        ("jq",     "brew install jq")
+    private static let toolDefinitions: [(name: String, hint: String, cat: ToolCategory, en: String, zh: String)] = [
+        ("claude", "npm i -g @anthropic-ai/claude-code", .required,
+         "Activate Claude Code usage windows", "激活 Claude Code 使用窗口"),
+        ("codex", "npm i -g @openai/codex", .required,
+         "Activate Codex usage windows", "激活 Codex 使用窗口"),
+        ("jq", "brew install jq", .required,
+         "JSON processor for quota data", "JSON 处理工具，用于额度数据"),
+        ("node", "brew install node", .optional,
+         "Enables Codex quota snapshots", "启用 Codex 额度快照"),
+        ("omc", "npm i -g oh-my-claudecode", .optional,
+         "Enables Claude quota snapshots", "启用 Claude 额度快照"),
     ]
 
-    static func checkMissingTools() async -> [String] {
+    static func checkMissingTools(root: URL? = nil) async -> [String] {
         var missing: [String] = []
-        for tool in requiredTools {
-            let found = await isToolAvailable(tool.name)
-            if !found { missing.append(tool.name) }
+        for def in toolDefinitions where def.cat == .required {
+            let (found, _) = await toolStatus(def.name, root: root)
+            if !found { missing.append(def.name) }
         }
         return missing
     }
 
-    static func checkAllTools() async -> [ToolInfo] {
+    static func checkAllTools(root: URL? = nil) async -> [ToolInfo] {
         var results: [ToolInfo] = []
-        for tool in requiredTools {
-            let found = await isToolAvailable(tool.name)
-            results.append(ToolInfo(name: tool.name, found: found, installHint: tool.hint))
+        for def in toolDefinitions {
+            let (found, builtIn) = await toolStatus(def.name, root: root)
+            let desc = AppLanguage.current == .zh ? def.zh : def.en
+            results.append(ToolInfo(
+                name: def.name, found: found, builtIn: builtIn,
+                category: def.cat, installHint: def.hint,
+                toolDescription: desc
+            ))
         }
         return results
     }
@@ -426,14 +408,22 @@ enum ToolChecker {
         "/bin"
     ]
 
-    private static func isToolAvailable(_ name: String) async -> Bool {
+    private static func toolStatus(_ name: String, root: URL?) async -> (found: Bool, builtIn: Bool) {
         await Task.detached(priority: .userInitiated) {
+            if let root {
+                let bundled = root.appendingPathComponent("bin/\(name)").path
+                if FileManager.default.isExecutableFile(atPath: bundled) {
+                    return (true, true)
+                }
+            }
+
             for dir in searchPaths {
                 let path = "\(dir)/\(name)"
                 if FileManager.default.isExecutableFile(atPath: path) {
-                    return true
+                    return (true, false)
                 }
             }
+
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/bin/sh")
             process.arguments = ["-l", "-c", "which \(name)"]
@@ -442,9 +432,9 @@ enum ToolChecker {
             do {
                 try process.run()
                 process.waitUntilExit()
-                return process.terminationStatus == 0
+                return (process.terminationStatus == 0, false)
             } catch {
-                return false
+                return (false, false)
             }
         }.value
     }
@@ -454,13 +444,20 @@ enum ToolChecker {
 
 struct OnboardingView: View {
     @Binding var isPresented: Bool
+    var root: URL?
     @AppStorage("hideOnboarding") private var hideOnboarding = false
     @State private var toolResults: [ToolChecker.ToolInfo] = []
     @State private var isChecking = true
 
+    private var requiredTools: [ToolChecker.ToolInfo] {
+        toolResults.filter { $0.category == .required }
+    }
+    private var optionalTools: [ToolChecker.ToolInfo] {
+        toolResults.filter { $0.category == .optional }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
             HStack(spacing: 12) {
                 Image(systemName: "wrench.and.screwdriver.fill")
                     .font(.system(size: 20, weight: .semibold))
@@ -470,7 +467,7 @@ struct OnboardingView: View {
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                     Text(L10n.environmentCheckSubtitle)
                         .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(DS.textSecondary)
                 }
                 Spacer()
             }
@@ -478,36 +475,26 @@ struct OnboardingView: View {
 
             Divider()
 
-            // Tool list
-            VStack(spacing: 0) {
-                if isChecking {
-                    HStack(spacing: 10) {
-                        ProgressView().controlSize(.small)
-                        Text(L10n.checking)
-                            .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
+            if isChecking {
+                HStack(spacing: 10) {
+                    ProgressView().controlSize(.small)
+                    Text(L10n.checking)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+            } else {
+                ScrollView {
+                    VStack(spacing: 12) {
+                        ToolSectionCard(title: L10n.requiredTools, tools: requiredTools)
+                        ToolSectionCard(title: L10n.optionalTools, tools: optionalTools)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-                } else {
-                    ForEach(toolResults, id: \.name) { tool in
-                        ToolStatusRow(tool: tool)
-                        if tool.name != toolResults.last?.name {
-                            Divider().padding(.leading, DS.cardPadding)
-                        }
-                    }
+                    .padding(.horizontal, DS.cardPadding)
+                    .padding(.vertical, DS.cardPadding)
                 }
             }
-            .background(DS.cardBg)
-            .clipShape(RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
-                    .strokeBorder(DS.subtleBorder, lineWidth: 1)
-            )
-            .padding(.horizontal, DS.cardPadding)
-            .padding(.top, DS.cardPadding)
 
-            // Footer
             HStack(spacing: 12) {
                 Toggle(L10n.dontShowAgain, isOn: $hideOnboarding)
                     .font(.system(size: 13))
@@ -524,10 +511,40 @@ struct OnboardingView: View {
             }
             .padding(DS.cardPadding)
         }
-        .frame(width: 380)
+        .frame(width: 400)
         .task {
-            toolResults = await ToolChecker.checkAllTools()
+            toolResults = await ToolChecker.checkAllTools(root: root)
             isChecking = false
+        }
+    }
+}
+
+struct ToolSectionCard: View {
+    var title: String
+    var tools: [ToolChecker.ToolInfo]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(DS.textSecondary)
+                .textCase(.uppercase)
+                .padding(.horizontal, 4)
+
+            VStack(spacing: 0) {
+                ForEach(Array(tools.enumerated()), id: \.element.name) { index, tool in
+                    ToolStatusRow(tool: tool)
+                    if index < tools.count - 1 {
+                        Divider().padding(.leading, DS.cardPadding)
+                    }
+                }
+            }
+            .background(DS.cardBg)
+            .clipShape(RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
+                    .strokeBorder(DS.subtleBorder, lineWidth: 1)
+            )
         }
     }
 }
@@ -535,31 +552,56 @@ struct OnboardingView: View {
 struct ToolStatusRow: View {
     var tool: ToolChecker.ToolInfo
 
+    private var statusText: String {
+        if tool.builtIn { return L10n.builtIn }
+        if tool.found { return L10n.installed }
+        if tool.category == .optional { return L10n.notInstalled }
+        return L10n.notFound
+    }
+
+    private var statusColor: Color {
+        if tool.builtIn { return DS.accentBlue }
+        if tool.found { return DS.activeGreen }
+        if tool.category == .optional { return DS.accentOrange }
+        return .red
+    }
+
+    private var statusIcon: String {
+        if tool.builtIn { return "shippingbox.circle.fill" }
+        if tool.found { return "checkmark.circle.fill" }
+        return "xmark.circle.fill"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 10) {
-                Image(systemName: tool.found ? "checkmark.circle.fill" : "xmark.circle.fill")
+                Image(systemName: statusIcon)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(tool.found ? DS.activeGreen : .red)
+                    .foregroundStyle(statusColor)
 
                 Text(tool.name)
                     .font(.system(size: 14, weight: .semibold, design: .monospaced))
 
                 Spacer()
 
-                Text(tool.found ? L10n.installed : L10n.notFound)
+                Text(statusText)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(tool.found ? DS.activeGreen : .red)
+                    .foregroundStyle(statusColor)
             }
 
-            if !tool.found {
+            Text(tool.toolDescription)
+                .font(.system(size: 11))
+                .foregroundStyle(DS.textSecondary)
+                .padding(.leading, 26)
+
+            if !tool.found && !tool.builtIn {
                 HStack(spacing: 6) {
                     Image(systemName: "terminal")
                         .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(DS.textMuted)
                     Text(tool.installHint)
                         .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(DS.textSecondary)
                         .textSelection(.enabled)
                 }
                 .padding(.leading, 26)
@@ -567,62 +609,6 @@ struct ToolStatusRow: View {
         }
         .padding(.horizontal, DS.cardPadding)
         .padding(.vertical, 10)
-    }
-}
-
-// MARK: - Header
-
-struct SettingsHeader: View {
-    @ObservedObject var model: ActivationTimerAppModel
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 16) {
-                AppIconBadge()
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Activation Timer")
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                    Text(L10n.appSubtitle)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                if model.isBusy {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-
-                Button {
-                    let lang = AppLanguage.current
-                    AppLanguage.current = (lang == .zh) ? .en : .zh
-                    model.objectWillChange.send()
-                } label: {
-                    Text(AppLanguage.current == .zh ? "EN" : "中")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .frame(width: 28, height: 28)
-                        .background(Color.primary.opacity(0.08))
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .help(AppLanguage.current == .zh ? L10n.switchToEnglish : L10n.switchToChinese)
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 12)
-
-            Divider()
-
-            if !model.statusMessage.isEmpty {
-                NotificationBanner(
-                    message: model.statusMessage,
-                    isError: model.statusIsError
-                )
-                .transition(.move(edge: .top).combined(with: .opacity))
-            }
-        }
-        .animation(.easeInOut(duration: 0.25), value: model.statusMessage)
     }
 }
 
@@ -673,208 +659,6 @@ struct AppIconBadge: View {
         }
         .frame(width: 44, height: 44)
         .shadow(color: Color.black.opacity(0.15), radius: 6, x: 0, y: 3)
-    }
-}
-
-// MARK: - Status Card
-
-struct StatusCard: View {
-    @ObservedObject var model: ActivationTimerAppModel
-
-    private var isOn: Bool { model.state?.installed == true }
-
-    var body: some View {
-        VStack(spacing: 14) {
-            HStack(spacing: 14) {
-                ZStack {
-                    Circle()
-                        .fill(isOn ? DS.activeGreen.opacity(0.15) : Color.secondary.opacity(0.08))
-                        .frame(width: 42, height: 42)
-                    Image(systemName: "power")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(isOn ? DS.activeGreen : .secondary)
-                }
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(isOn ? L10n.scheduleOn : L10n.scheduleOff)
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    if let state = model.state {
-                        Text(state.schedule.times.joined(separator: "  ·  "))
-                            .font(.system(size: 12, weight: .medium, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer()
-
-                Toggle("", isOn: Binding(
-                    get: { isOn },
-                    set: { _ in model.toggleSchedule() }
-                ))
-                .toggleStyle(.switch)
-                .tint(DS.activeGreen)
-                .labelsHidden()
-                .scaleEffect(0.9)
-            }
-
-            HStack(spacing: 10) {
-                QuotaBadge(
-                    tool: "Claude",
-                    color: DS.claudePurple,
-                    icon: "c.circle.fill",
-                    quota: model.state?.quota["claude"]
-                )
-                QuotaBadge(
-                    tool: "Codex",
-                    color: DS.codexGreen,
-                    icon: "chevron.left.forwardslash.chevron.right",
-                    quota: model.state?.quota["codex"]
-                )
-            }
-
-            // Last run result
-            LastRunRow(lastUsage: model.state?.lastUsage)
-        }
-        .padding(DS.cardPadding)
-        .background(
-            RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
-                .fill(isOn ? DS.activeBg : DS.cardBg)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
-                .strokeBorder(isOn ? DS.activeGreen.opacity(0.25) : DS.subtleBorder, lineWidth: 1)
-        )
-        .animation(.easeInOut(duration: 0.3), value: isOn)
-    }
-}
-
-// MARK: - Last Run Row
-
-struct LastRunRow: View {
-    var lastUsage: ActivationState.LastUsage?
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "clock.arrow.circlepath")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-
-            if let usage = lastUsage {
-                Text(L10n.lastRun)
-                    .foregroundStyle(.secondary)
-                + Text(toolLabel(usage))
-                    .foregroundStyle(.primary)
-                + Text("  ")
-                + Text(resultLabel(usage))
-                    .foregroundStyle(resultColor(usage))
-
-                Spacer()
-
-                if let ts = usage.timestamp {
-                    Text(formatTimestamp(ts))
-                        .foregroundStyle(.tertiary)
-                }
-            } else {
-                Text(L10n.noRunHistory)
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
-        }
-        .font(.system(size: 11))
-        .lineLimit(1)
-    }
-
-    private func toolLabel(_ usage: ActivationState.LastUsage) -> String {
-        guard let tool = usage.tool else { return L10n.unknown }
-        return tool.capitalized
-    }
-
-    private func resultLabel(_ usage: ActivationState.LastUsage) -> String {
-        if let result = usage.result, !result.isEmpty {
-            return result
-        }
-        if usage.skipped == true {
-            if let reason = usage.skipReason, !reason.isEmpty {
-                return "\(L10n.skipped)(\(reason))"
-            }
-            return L10n.skipped
-        }
-        if let ok = usage.ok {
-            return ok ? L10n.success : L10n.failed
-        }
-        return "--"
-    }
-
-    private func resultColor(_ usage: ActivationState.LastUsage) -> Color {
-        if usage.skipped == true { return DS.accentOrange }
-        if let ok = usage.ok { return ok ? DS.activeGreen : .red }
-        return .secondary
-    }
-
-    private func formatTimestamp(_ ts: String) -> String {
-        // ts is ISO8601 or similar; show date+time compactly
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: ts) {
-            return Self.displayFormatter.string(from: date)
-        }
-        // fallback: try without fractional seconds
-        formatter.formatOptions = [.withInternetDateTime]
-        if let date = formatter.date(from: ts) {
-            return Self.displayFormatter.string(from: date)
-        }
-        // last resort: return first 16 chars of ts
-        return String(ts.prefix(16))
-    }
-
-    private static let displayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "MM-dd HH:mm"
-        return f
-    }()
-}
-
-struct QuotaBadge: View {
-    var tool: String
-    var color: Color
-    var icon: String
-    var quota: ActivationState.ToolQuota?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(color)
-                Text(tool)
-                    .font(.system(size: 12, weight: .semibold))
-            }
-
-            HStack(spacing: 12) {
-                QuotaRow(label: L10n.fiveHour, pct: quota?.fiveHour?.remainingPercent)
-                QuotaRow(label: L10n.weekly, pct: quota?.weekly?.remainingPercent)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(Color.primary.opacity(0.03))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-    }
-}
-
-struct QuotaRow: View {
-    var label: String
-    var pct: Double?
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Text(label)
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-            Text(DS.quotaLabel(pct))
-                .font(.system(size: 12, weight: .bold, design: .rounded))
-                .foregroundStyle(DS.quotaColor(pct))
-        }
     }
 }
 
@@ -1034,7 +818,7 @@ struct AddTimePill: View {
                     Text(L10n.add)
                         .font(.system(size: 12, weight: .medium))
                 }
-                .foregroundStyle(.secondary)
+                .foregroundStyle(DS.textSecondary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .background(Color.primary.opacity(0.04))
@@ -1193,16 +977,16 @@ struct AdvancedSection: View {
                 HStack(spacing: 8) {
                     Image(systemName: "gearshape")
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(DS.textSecondary)
                     Text(L10n.advanced)
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(DS.textSecondary)
 
                     Spacer()
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(DS.textMuted)
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 }
                 .padding(.horizontal, 16)
@@ -1218,24 +1002,38 @@ struct AdvancedSection: View {
                     Toggle(L10n.checkQuotaBefore, isOn: $model.settings.enableQuotaPreflight)
                     Toggle(L10n.recordSnapshotAfter, isOn: $model.settings.enableStatusSnapshots)
 
-                    Picker(L10n.whenQuotaUnavailable, selection: $model.settings.quotaPreflightOnUnknown) {
-                        Text(L10n.continueAnyway).tag("allow")
-                        Text(L10n.skip).tag("skip")
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(L10n.whenQuotaUnavailable)
+                            .foregroundStyle(DS.textSecondary)
+                        Picker("", selection: $model.settings.quotaPreflightOnUnknown) {
+                            Text(L10n.continueAnyway).tag("allow")
+                            Text(L10n.skip).tag("skip")
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
                     }
-                    .pickerStyle(.segmented)
 
                     Divider()
 
-                    Picker(L10n.keepAwake, selection: $model.settings.keepAwakeMode) {
-                        Text(L10n.off).tag("off")
-                        Text(L10n.duringRun).tag("during")
-                        Text(L10n.whileAppOpen).tag("always")
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(L10n.keepAwake)
+                            .foregroundStyle(DS.textSecondary)
+                        Picker("", selection: $model.settings.keepAwakeMode) {
+                            Text(L10n.off).tag("off")
+                            Text(L10n.duringRun).tag("during")
+                            Text(L10n.whileAppOpen).tag("always")
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
                     }
-                    .pickerStyle(.segmented)
 
-                    LabeledContent(L10n.durationSeconds) {
+                    HStack {
+                        Text(L10n.durationSeconds)
+                        Spacer()
                         TextField("900", text: $model.settings.keepAwakeSeconds)
+                            .multilineTextAlignment(.trailing)
                             .frame(maxWidth: 120)
+                            .textFieldStyle(.roundedBorder)
                     }
 
                     Divider()
@@ -1256,64 +1054,3 @@ struct AdvancedSection: View {
     }
 }
 
-// MARK: - Action Bar
-
-struct ActionBar: View {
-    @ObservedObject var model: ActivationTimerAppModel
-
-    private var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0"
-    }
-
-    var body: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 10) {
-                Button {
-                    model.saveSettingsAndReload()
-                } label: {
-                    Label(L10n.save, systemImage: "checkmark.circle.fill")
-                        .font(.system(size: 13, weight: .medium))
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(DS.accentBlue)
-
-                Button {
-                    model.runNowWithDelayedRefresh()
-                } label: {
-                    Label(L10n.runOnce, systemImage: "play.fill")
-                        .font(.system(size: 13, weight: .medium))
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
-                }
-                .buttonStyle(.bordered)
-
-                Spacer()
-
-                Button {
-                    model.openLogs()
-                } label: {
-                    Image(systemName: "doc.text")
-                        .font(.system(size: 13))
-                }
-                .help(L10n.logs)
-
-                Button {
-                    model.openInstallGuide()
-                } label: {
-                    Image(systemName: "questionmark.circle")
-                        .font(.system(size: 13))
-                }
-                .help(L10n.help)
-            }
-
-            HStack {
-                Spacer()
-                Text("v\(appVersion)")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-        }
-    }
-}

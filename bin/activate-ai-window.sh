@@ -31,6 +31,11 @@ export HOME="${HOME}"
 CLAUDE_BIN="${CLAUDE_BIN:-$(command -v claude 2>/dev/null || true)}"
 CODEX_BIN="${CODEX_BIN:-$(command -v codex 2>/dev/null || true)}"
 JQ_BIN="${JQ_BIN:-$(command -v jq 2>/dev/null || true)}"
+if [[ -z "$JQ_BIN" || ! -x "$JQ_BIN" ]]; then
+  _bundled_jq="${ROOT_DIR}/bin/jq"
+  [[ -x "$_bundled_jq" ]] && JQ_BIN="$_bundled_jq"
+  unset _bundled_jq
+fi
 NODE_BIN="${NODE_BIN:-$(command -v node 2>/dev/null || true)}"
 OMC_BIN="${OMC_BIN:-$(command -v omc 2>/dev/null || true)}"
 ACTIVATION_PROMPT="${ACTIVATION_PROMPT:-Reply exactly READY. Do not inspect files, run tools, or modify anything.}"
@@ -701,6 +706,12 @@ run_claude() {
   local cmd=(
     "$CLAUDE_BIN"
     -p "$ACTIVATION_PROMPT"
+    --model haiku
+    --system-prompt "Reply only: READY"
+    --setting-sources ""
+    --effort low
+    --strict-mcp-config
+    --mcp-config '{"mcpServers":{}}'
     --output-format json
     --no-session-persistence
     --disable-slash-commands
@@ -731,6 +742,14 @@ run_codex() {
     --ephemeral
     --skip-git-repo-check
     --sandbox read-only
+    --ignore-user-config
+    --ignore-rules
+    -c 'features.memories=false'
+    -c 'features.multi_agent=false'
+    -c 'features.goals=false'
+    -c 'features.codex_hooks=false'
+    -c 'features.child_agents_md=false'
+    -c 'model_reasoning_effort="low"'
     --json
     "$ACTIVATION_PROMPT"
   )

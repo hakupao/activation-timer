@@ -256,7 +256,7 @@ macOS 醒着。即使 App 没开，定时触发仍然照常由 launchd 执行；
 1. **加载配置** — 从 `.env` 读取 schedule、工具选择、额度设置和二进制路径。
 2. **获取锁** — 创建 `run/activation.lock` 防止并发；如果已有运行中的触发，第二次触发会被优雅跳过。
 3. **额度预检**（可选） — 在发送任何 prompt *之前*查询 Claude 和 Codex 的额度状态。如果某个工具的额度已耗尽，该工具会被跳过，跳过记录写入 `logs/usage.jsonl`。
-4. **发送 prompt** — 对每个启用的 CLI 发送一个极简 prompt（`Reply exactly READY`）。Claude 使用 `--tools ""`（无工具）、`--no-session-persistence` 和 `--disable-slash-commands`。Codex 使用 `--ephemeral`、`--skip-git-repo-check` 和 `--sandbox read-only`。
+4. **发送 prompt** — 对每个启用的 CLI 发送一个极简 prompt（`Reply exactly READY`）。Claude 使用超轻量模式（见[成本优化](#成本优化)）。Codex 使用 `--ephemeral`、`--skip-git-repo-check`、`--sandbox read-only`，以及精简后的配置（见下文）。
 5. **记录 usage** — 用 `jq` 解析每个 CLI 的 JSON 输出，把结构化记录追加到 `logs/usage.jsonl`（token 数量、费用、session ID、模型、耗时等）。
 6. **触发后快照**（可选） — 激活后再做一次额度快照，追加到 `logs/status.jsonl`。
 7. **释放锁** — 删除 lock 目录，下一次定时触发就可以正常执行。
@@ -317,14 +317,56 @@ activation-timer/
 
 GitHub Actions 只在 push 和 pull request 时校验仓库脚本。真正的定时触发始终运行在执行过 `./install.sh install` 的那台 Mac 本地。
 
+## 成本优化
+
+每次激活只需一次 API 往返——prompt 和响应加起来不到 300 tokens。成本的瓶颈在于 CLI 自动注入的**系统 prompt**（CLAUDE.md、插件、MCP 工具描述、hooks 等），单次可超过 40 000 tokens。
+
+Runner 会把两个 CLI 的上下文压缩到激活所需的最低限度：
+
+### Claude
+
+| 参数 | 作用 |
+| --- | --- |
+| `--model haiku` | 最便宜的模型（input ~$0.80/M，Opus ~$15/M） |
+| `--system-prompt "Reply only: READY"` | 自定义极简系统 prompt |
+| `--setting-sources ""` | 跳过加载 CLAUDE.md、hooks、插件指令——消除 ~40K tokens 的注入上下文 |
+| `--effort low` | 最低推理力度 |
+| `--strict-mcp-config --mcp-config '{"mcpServers":{}}'` | 空 MCP 配置——去掉所有工具描述 |
+| `--tools ""` | 禁用所有内置工具 |
+| `--disable-slash-commands` | 禁用 skills |
+
+效果：**~170 input tokens，每次激活 ~$0.001**（优化前 ~40K tokens / ~$0.15）。
+
+### Codex
+
+| 参数 | 作用 |
+| --- | --- |
+| `--ignore-user-config` | 跳过 `~/.codex/config.toml`——去除插件、MCP、developer instructions |
+| `--ignore-rules` | 跳过 `.rules` 文件 |
+| `-c 'features.memories=false'` | 禁用 memories |
+| `-c 'features.multi_agent=false'` | 禁用 multi-agent |
+| `-c 'features.goals=false'` | 禁用 goals |
+| `-c 'features.codex_hooks=false'` | 禁用 hooks |
+| `-c 'features.child_agents_md=false'` | 禁用 AGENTS.md 加载 |
+| `-c 'model_reasoning_effort="low"'` | 最低推理力度 |
+
+效果：**~22K input tokens**（优化前 ~32K）。Codex 内部系统 prompt（~22K）是底线，无法再压缩；ChatGPT 账号也无法切换更轻量的模型。
+
+### 月成本估算（每天 4 次激活）
+
+| 工具 | 优化前 | 优化后 |
+| --- | --- | --- |
+| Claude | ~$18/月 | **~$0.16/月** |
+| Codex | 按配额计算，~32K tokens/次 | 按配额计算，**~22K tokens/次（−31%）** |
+
 ## 安全说明
 
 - `dry-run` 不会发送模型 prompt。
 - `quota` 只查询账号/rate-limit 状态和本地 cache，不会发送模型 prompt。
 - `run-now` 和定时触发会先做 quota preflight；只有额度看起来可用时，才给启用的工具发送一个很短的 prompt。
 - 如果明确额度已经耗尽，对应工具会被跳过，并在 `logs/usage.jsonl` 里记录 `skipped: true`。
-- Claude 默认禁用 slash commands、禁用 session persistence，并传入空 tools。
-- Codex 默认使用 `--ephemeral`、`--skip-git-repo-check` 和 `--sandbox read-only`。
+- Claude 使用 `--model haiku`、`--setting-sources ""`、`--system-prompt`、`--effort low`、`--strict-mcp-config` 空配置、无 tools、无 slash commands、无 session persistence。详见[成本优化](#成本优化)。
+- Codex 使用 `--ephemeral`、`--skip-git-repo-check`、`--sandbox read-only`、`--ignore-user-config`、`--ignore-rules`，并禁用 memories、multi-agent、goals、hooks 等功能。
 - 生成的 plist 会被 git 忽略，因为它包含本机绝对路径。
 
 ## 卸载

@@ -25,6 +25,11 @@ QUOTA_EXHAUSTED_THRESHOLD_PERCENT="${QUOTA_EXHAUSTED_THRESHOLD_PERCENT:-0}"
 KEEP_AWAKE_MODE="${KEEP_AWAKE_MODE:-off}"
 KEEP_AWAKE_SECONDS="${KEEP_AWAKE_SECONDS:-900}"
 JQ_BIN="${JQ_BIN:-$(command -v jq 2>/dev/null || true)}"
+if [[ -z "$JQ_BIN" || ! -x "$JQ_BIN" ]]; then
+  _bundled_jq="${ROOT_DIR}/bin/jq"
+  [[ -x "$_bundled_jq" ]] && JQ_BIN="$_bundled_jq"
+  unset _bundled_jq
+fi
 
 LOG_DIR="${ROOT_DIR}/logs"
 USAGE_LOG="${LOG_DIR}/usage.jsonl"

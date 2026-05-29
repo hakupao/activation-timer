@@ -261,7 +261,7 @@ When launchd triggers at a scheduled time (or you run `./install.sh run-now`), t
 1. **Load config** — reads `.env` for schedule, tool selection, quota settings, and binary paths.
 2. **Acquire lock** — creates `run/activation.lock` to prevent concurrent runs; a second trigger during an active run is skipped gracefully.
 3. **Quota preflight** (optional) — queries Claude and Codex quota status *before* sending any prompt. If a tool's quota is exhausted, that tool is skipped and the skip is recorded in `logs/usage.jsonl`.
-4. **Send prompt** — calls each enabled CLI with a minimal prompt (`Reply exactly READY`). Claude runs with `--tools ""` (no tools), `--no-session-persistence`, and `--disable-slash-commands`. Codex runs with `--ephemeral`, `--skip-git-repo-check`, and `--sandbox read-only`.
+4. **Send prompt** — calls each enabled CLI with a minimal prompt (`Reply exactly READY`). Claude runs in ultra-lightweight mode (see [Cost Optimization](#cost-optimization)). Codex runs with `--ephemeral`, `--skip-git-repo-check`, `--sandbox read-only`, and stripped-down config (see below).
 5. **Record usage** — parses each CLI's JSON output with `jq` and appends a structured record to `logs/usage.jsonl` (token counts, cost, session ID, model, duration, etc.).
 6. **Post-run snapshots** (optional) — takes another quota snapshot after activation and appends it to `logs/status.jsonl`.
 7. **Release lock** — removes the lock directory so the next scheduled run can proceed.
@@ -322,14 +322,56 @@ activation-timer/
 
 GitHub Actions only validates the repository scripts on push and pull requests. Scheduled activation always runs locally on the Mac where `./install.sh install` was executed.
 
+## Cost Optimization
+
+Each activation only needs a single API round-trip — the prompt and response together are under 300 tokens. The cost challenge is the **system prompt** that each CLI injects automatically (CLAUDE.md, plugins, MCP tool descriptions, hooks, etc.), which can exceed 40 000 tokens per call.
+
+The runner strips both CLIs down to the absolute minimum context required:
+
+### Claude
+
+| Flag | Effect |
+| --- | --- |
+| `--model haiku` | Cheapest model (input ~$0.80/M vs Opus ~$15/M) |
+| `--system-prompt "Reply only: READY"` | Custom minimal system prompt |
+| `--setting-sources ""` | Skip loading CLAUDE.md, hooks, and plugin instructions — eliminates ~40K tokens of injected context |
+| `--effort low` | Minimal reasoning effort |
+| `--strict-mcp-config --mcp-config '{"mcpServers":{}}'` | Empty MCP config — removes all tool descriptions |
+| `--tools ""` | Disable all built-in tools |
+| `--disable-slash-commands` | Disable skills |
+
+Result: **~170 input tokens, ~$0.001 per activation** (vs ~40K tokens / ~$0.15 without optimization).
+
+### Codex
+
+| Flag | Effect |
+| --- | --- |
+| `--ignore-user-config` | Skip `~/.codex/config.toml` — removes plugins, MCP servers, developer instructions |
+| `--ignore-rules` | Skip `.rules` files |
+| `-c 'features.memories=false'` | Disable memories |
+| `-c 'features.multi_agent=false'` | Disable multi-agent |
+| `-c 'features.goals=false'` | Disable goals |
+| `-c 'features.codex_hooks=false'` | Disable hooks |
+| `-c 'features.child_agents_md=false'` | Disable AGENTS.md loading |
+| `-c 'model_reasoning_effort="low"'` | Minimal reasoning effort |
+
+Result: **~22K input tokens** (vs ~32K without optimization). Codex's internal system prompt (~22K) is the floor — it cannot be stripped further, and ChatGPT accounts cannot switch to a lighter model.
+
+### Monthly cost estimate (4 activations/day)
+
+| Tool | Before | After |
+| --- | --- | --- |
+| Claude | ~$18/month | **~$0.16/month** |
+| Codex | Quota-based, ~32K tokens/call | Quota-based, **~22K tokens/call (−31%)** |
+
 ## Safety Notes
 
 - `dry-run` does not send model prompts.
 - `quota` only queries account/rate-limit status paths and local caches; it does not send a model prompt.
 - `run-now` and scheduled activation first run quota preflight, then send one small prompt per enabled tool only when quota appears available.
 - If quota is known to be exhausted, the tool is skipped and recorded in `logs/usage.jsonl` with `skipped: true`.
-- The default Claude invocation disables slash commands, disables session persistence, and uses no tools.
-- The default Codex invocation uses `--ephemeral`, `--skip-git-repo-check`, and `--sandbox read-only`.
+- The Claude invocation uses `--model haiku`, `--setting-sources ""`, `--system-prompt`, `--effort low`, `--strict-mcp-config` with an empty config, no tools, no slash commands, and no session persistence. See [Cost Optimization](#cost-optimization) for details.
+- The Codex invocation uses `--ephemeral`, `--skip-git-repo-check`, `--sandbox read-only`, `--ignore-user-config`, `--ignore-rules`, and disables features like memories, multi-agent, goals, and hooks.
 - The generated plist is intentionally ignored by git because it contains machine-specific absolute paths.
 
 ## Uninstall

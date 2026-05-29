@@ -36,6 +36,18 @@ copy_path "${ROOT_DIR}/INSTALL_CN.md" "${ENGINE_DIR}/INSTALL_CN.md"
 copy_path "${ROOT_DIR}/CHANGELOG.md" "${ENGINE_DIR}/CHANGELOG.md"
 copy_path "${ROOT_DIR}/LICENSE" "${ENGINE_DIR}/LICENSE"
 copy_path "${ROOT_DIR}/bin" "${ENGINE_DIR}/bin"
+
+# Bundle jq so users without it installed can still use quota features.
+_jq_src="${JQ_SRC:-$(command -v jq 2>/dev/null || true)}"
+if [[ -n "$_jq_src" && -x "$_jq_src" ]]; then
+  cp "$_jq_src" "${ENGINE_DIR}/bin/jq"
+  chmod +x "${ENGINE_DIR}/bin/jq"
+  codesign --force --sign - "${ENGINE_DIR}/bin/jq" 2>/dev/null || true
+  echo "Bundled jq from ${_jq_src}"
+else
+  echo "WARNING: jq not found on build machine; app will require system jq" >&2
+fi
+
 copy_path "${ROOT_DIR}/scripts/install-launchd.sh" "${ENGINE_DIR}/scripts/install-launchd.sh"
 mkdir -p "${ENGINE_DIR}/logs/raw" "${ENGINE_DIR}/run" "${ENGINE_DIR}/launchd"
 

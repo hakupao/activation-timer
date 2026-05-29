@@ -175,6 +175,18 @@ public enum L10n {
     public static var installed: String {
         AppLanguage.current == .zh ? "已安装" : "Installed"
     }
+    public static var requiredTools: String {
+        AppLanguage.current == .zh ? "必需" : "Required"
+    }
+    public static var optionalTools: String {
+        AppLanguage.current == .zh ? "可选" : "Optional"
+    }
+    public static var builtIn: String {
+        AppLanguage.current == .zh ? "已内置" : "Built-in"
+    }
+    public static var notInstalled: String {
+        AppLanguage.current == .zh ? "未安装" : "Not installed"
+    }
     public static var dontShowAgain: String {
         AppLanguage.current == .zh ? "不再提示" : "Don't show again"
     }
@@ -188,6 +200,74 @@ public enum L10n {
     // MARK: - Language Toggle
     public static var switchToEnglish: String { "Switch to English" }
     public static var switchToChinese: String { "切换到中文" }
+
+    // MARK: - Activity
+    public static var activity: String {
+        AppLanguage.current == .zh ? "活动" : "Activity"
+    }
+    public static var quotaTrend: String {
+        AppLanguage.current == .zh ? "额度趋势" : "Quota Trend"
+    }
+    public static var allTools: String {
+        AppLanguage.current == .zh ? "全部" : "All"
+    }
+    public static var today: String {
+        AppLanguage.current == .zh ? "今天" : "Today"
+    }
+    public static var sevenDays: String {
+        AppLanguage.current == .zh ? "7 天" : "7 Days"
+    }
+    public static var thirtyDays: String {
+        AppLanguage.current == .zh ? "30 天" : "30 Days"
+    }
+    public static var allTime: String {
+        AppLanguage.current == .zh ? "全部" : "All Time"
+    }
+    public static var allStatus: String {
+        AppLanguage.current == .zh ? "全部状态" : "All Status"
+    }
+    public static var exportCsv: String {
+        AppLanguage.current == .zh ? "导出 CSV" : "Export CSV"
+    }
+    public static var totalRuns: String {
+        AppLanguage.current == .zh ? "总运行" : "Total Runs"
+    }
+    public static var avgCost: String {
+        AppLanguage.current == .zh ? "均价" : "Avg Cost"
+    }
+    public static var runHistory: String {
+        AppLanguage.current == .zh ? "运行记录" : "Run History"
+    }
+    public static var noRunsInRange: String {
+        AppLanguage.current == .zh ? "所选范围内暂无记录" : "No runs in selected range"
+    }
+    public static var noRunsYet: String {
+        AppLanguage.current == .zh ? "暂无运行数据" : "No activity yet"
+    }
+    public static var noRunsHint: String {
+        AppLanguage.current == .zh ? "运行一次后，活动记录会显示在这里" : "Activity will appear here after the first run"
+    }
+    public static var inputLabel: String {
+        AppLanguage.current == .zh ? "输入" : "In"
+    }
+    public static var outputLabel: String {
+        AppLanguage.current == .zh ? "输出" : "Out"
+    }
+    public static var cacheLabel: String {
+        AppLanguage.current == .zh ? "缓存" : "Cache"
+    }
+    public static var reasoningLabel: String {
+        AppLanguage.current == .zh ? "推理" : "Reason"
+    }
+    public static var durationLabel: String {
+        AppLanguage.current == .zh ? "耗时" : "Time"
+    }
+    public static var sessionLabel: String {
+        AppLanguage.current == .zh ? "会话" : "Session"
+    }
+    public static var exported: String {
+        AppLanguage.current == .zh ? "已导出" : "Exported"
+    }
 
     // MARK: - Misc
     public static var checking: String {
