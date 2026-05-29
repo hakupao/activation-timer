@@ -18,7 +18,8 @@ let updated = EnvFile.updating(
     original,
     values: [
         "SCHEDULE_TIMES": "06:15,13:15,21:15",
-        "KEEP_AWAKE_MODE": "during"
+        "KEEP_AWAKE_MODE": "during",
+        "CODEX_MODEL": "gpt-5.4-mini"
     ]
 )
 
@@ -26,6 +27,7 @@ precondition(updated.contains("# keep comments"))
 precondition(updated.contains("LABEL=com.stoker.ai-window"))
 precondition(updated.contains("SCHEDULE_TIMES=\"06:15,13:15,21:15\""))
 precondition(updated.contains("KEEP_AWAKE_MODE=during"))
+precondition(updated.contains("CODEX_MODEL=gpt-5.4-mini"))
 
 let schedule = ScheduleFormatter.times(from: "6:05, 13:05,21:05")
 precondition(schedule == ["06:05", "13:05", "21:05"])

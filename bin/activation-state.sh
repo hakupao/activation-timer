@@ -18,6 +18,7 @@ fi
 LABEL="${LABEL:-com.stoker.ai-window}"
 SCHEDULE_TIMES="${SCHEDULE_TIMES:-07:00,12:00,17:00,22:00}"
 ACTIVATION_TOOL="${ACTIVATION_TOOL:-all}"
+CODEX_MODEL="${CODEX_MODEL:-gpt-5.4-mini}"
 ENABLE_STATUS_SNAPSHOTS="${ENABLE_STATUS_SNAPSHOTS:-1}"
 ENABLE_QUOTA_PREFLIGHT="${ENABLE_QUOTA_PREFLIGHT:-1}"
 QUOTA_PREFLIGHT_ON_UNKNOWN="${QUOTA_PREFLIGHT_ON_UNKNOWN:-allow}"
@@ -145,6 +146,7 @@ enable_quota_preflight="$(bool_from_1 "$ENABLE_QUOTA_PREFLIGHT")"
   --arg root "$ROOT_DIR" \
   --arg label "$LABEL" \
   --arg activation_tool "$ACTIVATION_TOOL" \
+  --arg codex_model "$CODEX_MODEL" \
   --arg quota_preflight_on_unknown "$QUOTA_PREFLIGHT_ON_UNKNOWN" \
   --argjson quota_exhausted_threshold_percent "$QUOTA_EXHAUSTED_THRESHOLD_PERCENT" \
   --arg keep_awake_mode "$KEEP_AWAKE_MODE" \
@@ -172,6 +174,7 @@ enable_quota_preflight="$(bool_from_1 "$ENABLE_QUOTA_PREFLIGHT")"
       },
       config: {
         activation_tool: $activation_tool,
+        codex_model: $codex_model,
         enable_status_snapshots: $enable_status_snapshots,
         enable_quota_preflight: $enable_quota_preflight,
         quota_preflight_on_unknown: $quota_preflight_on_unknown,

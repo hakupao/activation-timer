@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.2.2 - 2026-05-30
+
+### Codex model selection
+- New `CODEX_MODEL` setting (default `gpt-5.4-mini`; set `default` to let the Codex CLI choose).
+  The runner passes `--model` to Codex unless it is `default`, records the model in
+  `logs/usage.jsonl`, and reports it in `./install.sh check`.
+- Added a **Codex model** field in the menu bar app's Advanced settings, surfaced through the
+  app-status JSON contract (`config.codex_model`).
+
+### Installer (DMG) — beginner-friendly
+- The GUI DMG now opens a **branded "Forge" installer window**: a warm background with an ember
+  arrow from **Stoker** to **Applications**, bilingual drag-to-install and first-launch steps,
+  proper icon layout, and a custom volume icon (graceful fallback to a plain DMG if Finder
+  styling is unavailable). The background is rendered deterministically and regenerated at
+  package time.
+- **Fixed: the app bundle was never code-signed.** `build-app.sh` now seals the whole bundle
+  with a deep ad-hoc signature as the final step, so a downloaded copy is a valid bundle that
+  macOS treats as "unidentified developer" (approvable) instead of **damaged**.
+- First-launch instructions corrected for **macOS 15 (Sequoia) / macOS 26+**: approve via
+  **System Settings › Privacy & Security › Open Anyway** (the old right-click → Open shortcut no
+  longer works on those versions); macOS 14 still uses right-click → Open.
+- OS-generated `.fseventsd`/`.Trashes` are removed from the image so the installer window stays
+  clean even when "show hidden files" is enabled.
+
+### Documentation & compliance
+- Rebuilt `README.md` / `README_CN.md` into a polished "GitHub app page" layout (centered app
+  icon, badges, light + dark bilingual screenshots) using the new ember "Forge" app icon, and
+  refreshed all menu bar app screenshots.
+- Updated `INSTALL.md` / `INSTALL_CN.md` to mirror the new installer flow and per-macOS-version
+  first-launch approval.
+- Added **`DISCLAIMER.md`** (no-affiliation, trademark, no-warranty, terms-of-service
+  responsibility, cost/quota, privacy, and bundled-`jq` third-party notices) and **`SECURITY.md`**
+  (vulnerability reporting), with Disclaimer sections linked from both READMEs.
+
 ## 0.2.1 - 2026-05-29
 
 ### "Forge" design language — refreshed UI and icon

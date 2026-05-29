@@ -1165,6 +1165,15 @@ struct AdvancedSection: View {
                     Toggle(L10n.checkQuotaBefore, isOn: $model.settings.enableQuotaPreflight)
                     Toggle(L10n.recordSnapshotAfter, isOn: $model.settings.enableStatusSnapshots)
 
+                    HStack {
+                        Text(L10n.codexModel)
+                        Spacer()
+                        TextField("gpt-5.4-mini", text: $model.settings.codexModel)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 160)
+                            .textFieldStyle(.roundedBorder)
+                    }
+
                     VStack(alignment: .leading, spacing: 6) {
                         Text(L10n.whenQuotaUnavailable)
                             .foregroundStyle(theme.textSecondary)
@@ -1216,4 +1225,3 @@ struct AdvancedSection: View {
         }
     }
 }
-

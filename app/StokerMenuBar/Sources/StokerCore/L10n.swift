@@ -83,6 +83,9 @@ public enum L10n {
     public static var recordSnapshotAfter: String {
         AppLanguage.current == .zh ? "运行后记录额度快照" : "Record quota snapshot after running"
     }
+    public static var codexModel: String {
+        AppLanguage.current == .zh ? "Codex 模型" : "Codex model"
+    }
     public static var whenQuotaUnavailable: String {
         AppLanguage.current == .zh ? "查不到额度时" : "When quota unavailable"
     }

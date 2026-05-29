@@ -116,9 +116,9 @@ cat >"${APP_DIR}/Contents/Info.plist" <<'PLIST'
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>0.2.1</string>
+  <string>0.2.2</string>
   <key>CFBundleVersion</key>
-  <string>3</string>
+  <string>4</string>
   <key>LSMinimumSystemVersion</key>
   <string>14.0</string>
   <key>LSUIElement</key>
@@ -126,5 +126,20 @@ cat >"${APP_DIR}/Contents/Info.plist" <<'PLIST'
 </dict>
 </plist>
 PLIST
+
+# Seal the whole bundle with a deep ad-hoc signature as the FINAL step — after every
+# resource, the bundled engine, and Info.plist are in place. Without this the bundle has
+# no Contents/_CodeSignature/CodeResources, so on a quarantined (downloaded) first launch
+# macOS reports it as damaged ("code has no resources but signature indicates they must be
+# present") instead of the normal, user-approvable "unidentified developer". Ad-hoc keeps
+# the app free/unnotarized; users still approve it once via System Settings on first open.
+if codesign --force --deep --sign - "$APP_DIR" 2>/dev/null; then
+  echo "Ad-hoc signed ${APP_DIR}"
+  codesign --verify --deep --strict "$APP_DIR" 2>/dev/null \
+    && echo "Signature verifies (valid ad-hoc bundle)" \
+    || echo "WARNING: ad-hoc signature did not verify" >&2
+else
+  echo "WARNING: ad-hoc codesign failed; the app bundle is unsigned and may be blocked on first launch" >&2
+fi
 
 echo "Built ${APP_DIR}"

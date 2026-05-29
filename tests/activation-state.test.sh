@@ -11,6 +11,7 @@ cat >"$TMP_DIR/.env" <<'ENV'
 LABEL=com.example.stoker.test
 SCHEDULE_TIMES="06:15,13:15,21:15"
 ACTIVATION_TOOL=codex
+CODEX_MODEL=gpt-5.4-mini
 ENABLE_STATUS_SNAPSHOTS=0
 ENABLE_QUOTA_PREFLIGHT=1
 KEEP_AWAKE_MODE=during
@@ -38,6 +39,7 @@ jq -e '
   and .label == "com.example.stoker.test"
   and .schedule.times == ["06:15", "13:15", "21:15"]
   and .config.activation_tool == "codex"
+  and .config.codex_model == "gpt-5.4-mini"
   and .config.enable_status_snapshots == false
   and .config.enable_quota_preflight == true
   and .keep_awake.mode == "during"

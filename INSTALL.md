@@ -4,12 +4,16 @@ Stoker is published in two forms.
 
 ## Beginner: menu bar app
 
-1. Download `stoker-gui-<version>.dmg`.
-2. Open the DMG and drag `Stoker.app` to `Applications`.
-3. Open `Stoker.app`.
-4. Click **Settings...** from the menu bar dropdown. Choose your schedule, tools, and other options. The app follows your system language; use the **EN/中** toggle in the top-right corner to switch.
-5. Click **保存** (Save) to apply your settings and enable the schedule.
-6. The status updates automatically — check the menu bar dropdown to confirm the schedule is on.
+1. Download `stoker-gui-<version>.dmg` and double-click it. The installer window opens with an arrow pointing from **Stoker** to **Applications**.
+2. **Drag `Stoker.app` onto the `Applications` folder**, following the arrow.
+3. **First launch (one-time approval).** Double-click `Stoker.app`. macOS blocks it the first time because the app is open-source and only ad-hoc signed (not notarized). Approve it once:
+   - **macOS 15 (Sequoia) / macOS 26 and later:** open **System Settings › Privacy & Security**, scroll to the note about *“Stoker” was blocked*, click **Open Anyway**, and confirm with Touch ID / your password. (On these versions the old right-click → Open shortcut no longer works.)
+   - **macOS 14 (Sonoma):** right-click `Stoker.app` → **Open** → **Open**.
+
+   After approving once, the normal double-click works from then on.
+4. From the menu bar dropdown, click **Settings...** and choose your schedule, tools, and other options. The app follows your system language; use the **EN/中** toggle in the top-right corner to switch.
+5. Click **Save** to apply your settings and enable the schedule.
+6. The status updates automatically — open the menu bar dropdown to confirm the schedule is on.
 
 The app stores its working copy at:
 
@@ -18,10 +22,6 @@ The app stores its working copy at:
 ```
 
 Scheduled activation continues through macOS `launchd`, even when the app is not open.
-
-If macOS warns that the app is from an unidentified developer, right-click
-`Stoker.app`, choose **Open**, then confirm once. Future launches can
-use the normal double-click path.
 
 ## Advanced: CLI / launchd
 

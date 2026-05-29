@@ -197,6 +197,7 @@ public struct ActivationState: Decodable {
 
     public struct Config: Decodable {
         public var activationTool: String
+        public var codexModel: String
         public var enableStatusSnapshots: Bool
         public var enableQuotaPreflight: Bool
         public var quotaPreflightOnUnknown: String
@@ -204,6 +205,7 @@ public struct ActivationState: Decodable {
 
         private enum CodingKeys: String, CodingKey {
             case activationTool = "activation_tool"
+            case codexModel = "codex_model"
             case enableStatusSnapshots = "enable_status_snapshots"
             case enableQuotaPreflight = "enable_quota_preflight"
             case quotaPreflightOnUnknown = "quota_preflight_on_unknown"
@@ -264,6 +266,7 @@ public struct ActivationState: Decodable {
 public struct AppSettings {
     public var scheduleTimes: [String]
     public var activationTool: String
+    public var codexModel: String
     public var enableStatusSnapshots: Bool
     public var enableQuotaPreflight: Bool
     public var quotaPreflightOnUnknown: String
@@ -294,6 +297,7 @@ public struct AppSettings {
         let timesStr = values["SCHEDULE_TIMES"] ?? "07:00,12:00,17:00,22:00"
         scheduleTimes = ScheduleFormatter.times(from: timesStr)
         activationTool = values["ACTIVATION_TOOL"] ?? "all"
+        codexModel = values["CODEX_MODEL"] ?? "gpt-5.4-mini"
         enableStatusSnapshots = values["ENABLE_STATUS_SNAPSHOTS"] != "0"
         enableQuotaPreflight = values["ENABLE_QUOTA_PREFLIGHT"] != "0"
         quotaPreflightOnUnknown = values["QUOTA_PREFLIGHT_ON_UNKNOWN"] ?? "allow"
@@ -305,6 +309,7 @@ public struct AppSettings {
         [
             "SCHEDULE_TIMES": scheduleTimes.joined(separator: ","),
             "ACTIVATION_TOOL": activationTool,
+            "CODEX_MODEL": codexModel,
             "ENABLE_STATUS_SNAPSHOTS": enableStatusSnapshots ? "1" : "0",
             "ENABLE_QUOTA_PREFLIGHT": enableQuotaPreflight ? "1" : "0",
             "QUOTA_PREFLIGHT_ON_UNKNOWN": quotaPreflightOnUnknown,

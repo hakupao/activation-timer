@@ -1,34 +1,64 @@
-[English](README.md) | [中文](README_CN.md)
+<div align="center">
+
+[English](README.md) · [中文](README_CN.md)
+
+<img src="design/stoker-ui-pack/assets/generated/stoker-imagegen-app-icon-concept.png" width="148" alt="Stoker app icon" />
 
 # Stoker
 
-> A tiny macOS scheduler that sends low-cost Claude Code and Codex check-ins at fixed times, then records activation logs, per-run token usage, and quota status snapshots.
+**Keep your Claude Code & Codex usage windows lit — on a schedule you choose.**
+
+A tiny macOS `launchd` scheduler that sends low-cost Claude Code and Codex check-ins at
+fixed times, then records activation logs, per-run token usage, and quota status snapshots.
 
 [![CI](https://github.com/hakupao/stoker/actions/workflows/ci.yml/badge.svg)](https://github.com/hakupao/stoker/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white)](#requirements)
+[![Version](https://img.shields.io/badge/version-0.2.2-E36E43)](CHANGELOG.md)
+
+![Bash](https://img.shields.io/badge/Bash-4EAA25?logo=gnubash&logoColor=white)
+![Swift 6](https://img.shields.io/badge/Swift_6-F05138?logo=swift&logoColor=white)
+![SwiftUI](https://img.shields.io/badge/SwiftUI-2396F3?logo=swift&logoColor=white)
+![launchd](https://img.shields.io/badge/launchd-scheduler-555555)
+
+[Features](#features) · [Quick Start](#quick-start) · [Menu Bar App](#menu-bar-app) · [How It Works](#how-it-works) · [Cost](#cost-optimization) · [Configuration](#configuration)
+
+<br/>
+
+<table>
+  <tr>
+    <td align="center"><sub><b>Activity · Light</b></sub><br/><img src="docs/images/activity-en.png" width="390" alt="Stoker activity dashboard (light)" /></td>
+    <td align="center"><sub><b>Activity · Dark</b></sub><br/><img src="docs/images/activity-en-dark.png" width="390" alt="Stoker activity dashboard (dark)" /></td>
+  </tr>
+</table>
+
+</div>
 
 ## About
 
-Stoker is a small Bash-based utility for people who want predictable Claude Code and Codex usage-window start times. It installs a macOS `launchd` agent that runs in a dedicated lightweight folder, asks each CLI to reply `READY`, and keeps the prompt intentionally small so it does not scan real projects or modify files.
+Stoker is a small Bash-based utility for people who want predictable Claude Code and Codex
+usage-window start times. It installs a macOS `launchd` agent that runs in a dedicated
+lightweight folder, asks each CLI to reply `READY`, and keeps the prompt intentionally small
+so it does not scan real projects or modify files.
 
-The name is a nod to a *stoker* — the crew member who keeps a furnace fed so the fire never goes out. That is exactly what this tool does for your AI usage windows: it keeps them lit on a schedule you choose.
+The name is a nod to a *stoker* — the crew member who keeps a furnace fed so the fire never
+goes out. That is exactly what this tool does for your AI usage windows: it keeps them lit on
+a schedule you choose.
 
 The default schedule is `07:00`, `12:00`, `17:00`, and `22:00` local macOS time.
 
-<p align="center">
-  <img src="docs/images/activity-en.png" width="460" alt="Stoker — Activity dashboard" />
-</p>
-
 ## Features
 
-- Scheduled Claude Code and Codex activation through macOS `launchd`.
-- A minimal prompt that tells both CLIs not to inspect files, run tools, or modify anything.
-- Human-readable run history in `logs/activation.log`.
-- Structured per-run usage records in `logs/usage.jsonl`.
-- Structured five-hour and weekly quota snapshots in `logs/status.jsonl`.
-- Quota preflight that skips activation gracefully when a known quota is exhausted.
-- Clone-friendly configuration through `.env`.
-- Safe manual commands for dry runs, dependency checks, quota checks, and uninstall.
+| | Feature |
+| :---: | :--- |
+| ⏰ | **Scheduled activation** of Claude Code and Codex through macOS `launchd`. |
+| 🪶 | **A minimal prompt** that tells both CLIs not to inspect files, run tools, or modify anything. |
+| 📜 | **Human-readable run history** in `logs/activation.log`. |
+| 📊 | **Structured per-run usage records** in `logs/usage.jsonl`. |
+| 🔋 | **Five-hour and weekly quota snapshots** in `logs/status.jsonl`. |
+| 🚦 | **Quota preflight** that skips activation gracefully when a known quota is exhausted. |
+| 🧬 | **Clone-friendly configuration** through `.env`. |
+| 🛟 | **Safe manual commands** for dry runs, dependency checks, quota checks, and uninstall. |
 
 ## Requirements
 
@@ -40,16 +70,17 @@ The default schedule is `07:00`, `12:00`, `17:00`, and `22:00` local macOS time.
 - Node.js for Codex quota status queries.
 - `omc` / oh-my-claudecode for Claude quota status snapshots.
 
-The activation itself only requires the Claude and Codex CLIs. Quota snapshots gracefully warn and skip if optional helpers such as `omc`, `node`, or `jq` are missing.
+The activation itself only requires the Claude and Codex CLIs. Quota snapshots gracefully warn
+and skip if optional helpers such as `omc`, `node`, or `jq` are missing.
 
 ## Quick Start
 
 Choose one distribution:
 
-- **CLI/launchd package**: for advanced users who want the lightest possible
-  install and direct shell control.
-- **Menu bar app package**: for beginners who want a GUI monitor and settings
-  panel while keeping the same local scheduler underneath.
+- **CLI/launchd package**: for advanced users who want the lightest possible install and
+  direct shell control.
+- **Menu bar app package**: for beginners who want a GUI monitor and settings panel while
+  keeping the same local scheduler underneath.
 
 ### CLI / launchd
 
@@ -62,18 +93,17 @@ cp .env.example .env
 ./install.sh
 ```
 
-`./install.sh` defaults to `install`, which generates a user LaunchAgent and loads it into the current macOS GUI session.
+`./install.sh` defaults to `install`, which generates a user LaunchAgent and loads it into the
+current macOS GUI session.
 
 ### Menu bar app
 
-Download the GUI DMG, drag `Stoker.app` to `Applications`, open it,
-then use the status-bar menu to install/reload the schedule, refresh quota, run
-once, pause the schedule, and edit settings. The app bundles the same CLI engine
-and installs its working copy under
+Download the GUI DMG, drag `Stoker.app` to `Applications`, open it, then use the status-bar
+menu to install/reload the schedule, refresh quota, run once, pause the schedule, and edit
+settings. The app bundles the same CLI engine and installs its working copy under
 `~/Library/Application Support/Stoker/stoker`.
 
-See [INSTALL.md](INSTALL.md) for complete beginner and advanced installation
-steps.
+See [INSTALL.md](INSTALL.md) for complete beginner and advanced installation steps.
 
 ## Commands
 
@@ -108,7 +138,9 @@ tail -n 20 logs/usage.jsonl | jq
 tail -n 20 logs/status.jsonl | jq
 ```
 
-`./install.sh status` should show a loaded LaunchAgent with calendar triggers for your configured hours. `state = not running` is normal between scheduled runs; it means the job is loaded and waiting for the next trigger. During a trigger it may briefly show `running`.
+`./install.sh status` should show a loaded LaunchAgent with calendar triggers for your
+configured hours. `state = not running` is normal between scheduled runs; it means the job is
+loaded and waiting for the next trigger. During a trigger it may briefly show `running`.
 
 `logs/activation.log` is the quickest human-readable view. A normal run looks like this:
 
@@ -127,14 +159,17 @@ claude job skipped by quota preflight reason=quota_exhausted
 codex job skipped by quota preflight reason=quota_exhausted
 ```
 
-`logs/usage.jsonl` is the structured success/skip record. Successful activations usually include `ok: true`, `result: READY`, and `exit_code: 0`. Skipped activations include `skipped: true` and a `skip_reason`.
+`logs/usage.jsonl` is the structured success/skip record. Successful activations usually
+include `ok: true`, `result: READY`, and `exit_code: 0`. Skipped activations include
+`skipped: true` and a `skip_reason`.
 
 Manual command guide:
 
 - `./install.sh status`: checks whether local `launchd` has the timer loaded.
 - `./install.sh quota`: checks quota status without sending prompts.
 - `./install.sh dry-run`: prints the planned commands without sending prompts.
-- `./install.sh run-now`: triggers the installed LaunchAgent once and may consume usage if quota is available.
+- `./install.sh run-now`: triggers the installed LaunchAgent once and may consume usage if
+  quota is available.
 
 ## Configuration
 
@@ -146,6 +181,7 @@ Copy `.env.example` to `.env` and adjust values:
 | `SCHEDULE_TIMES` | Comma-separated `HH:MM` schedule entries; each time point is independent | `"07:00,12:00,17:00,22:00"` |
 | `ACTIVATION_TOOL` | `all`, `claude`, or `codex` | `all` |
 | `ACTIVATION_PROMPT` | Low-cost prompt sent to the CLIs | `Reply exactly READY...` |
+| `CODEX_MODEL` | Codex activation model; set `default` to let Codex CLI choose | `gpt-5.4-mini` |
 | `TIMEOUT_SECONDS` | Per-tool timeout | `120` |
 | `ENABLE_STATUS_SNAPSHOTS` | Record quota snapshots after real activation | `1` |
 | `ENABLE_QUOTA_PREFLIGHT` | Check quota before sending prompts | `1` |
@@ -184,21 +220,31 @@ Log files:
 
 ## Menu Bar App
 
-The CLI/launchd workflow remains the primary engine. The optional menu bar app
-is a separate beginner-friendly distribution that adds a macOS status-bar
-control surface for the same configuration, schedule, quota snapshots, and logs.
+The CLI/launchd workflow remains the primary engine. The optional menu bar app is a separate
+beginner-friendly distribution that adds a macOS status-bar control surface for the same
+configuration, schedule, quota snapshots, and logs. The interface follows the system Light/Dark
+appearance and warms from a cool idle palette to a warm ember "active" state when the schedule
+is on.
 
 Highlights:
 
-- **Activity dashboard** — per-tool quota-trend chart (5-hour / weekly), a run-history timeline with expandable per-run details (tokens, cost, duration, session), and summary stats with date-range / status / tool filters.
-- **Settings** — edit independent schedule times, toggle Claude/Codex, and configure advanced options (quota preflight, post-run snapshots, keep-awake, launch at login).
+- **Activity dashboard** — per-tool quota-trend chart (5-hour / weekly), a run-history timeline
+  with expandable per-run details (tokens, cost, duration, session), and summary stats with
+  date-range / status / tool filters.
+- **Settings** — edit independent schedule times, toggle Claude/Codex, and configure advanced
+  options (quota preflight, post-run snapshots, keep-awake, launch at login).
 - **Bilingual UI** with an EN / 中 switch; the appearance follows the system Light/Dark setting.
 - **Environment Check** that detects required and optional CLI tools.
 - **Export run history to CSV.**
 
-<p align="center">
-  <img src="docs/images/settings-en.png" width="460" alt="Stoker — Settings tab" />
-</p>
+<div align="center">
+<table>
+  <tr>
+    <td align="center"><sub><b>Settings · Light</b></sub><br/><img src="docs/images/settings-en.png" width="390" alt="Stoker settings (light)" /></td>
+    <td align="center"><sub><b>Settings · Dark</b></sub><br/><img src="docs/images/settings-en-dark.png" width="390" alt="Stoker settings (dark)" /></td>
+  </tr>
+</table>
+</div>
 
 Build the app bundle locally:
 
@@ -213,9 +259,9 @@ The app calls the existing scripts instead of replacing them:
 - `./install.sh install` to save/reload the LaunchAgent after settings changes.
 - `./install.sh run-now`, `quota`, `dry-run`, and `uninstall` for menu actions.
 
-Set `KEEP_AWAKE_MODE=always` in the app if you want it to keep macOS awake while
-the menu bar app is open. Scheduled activation still works without the app
-running, and `KEEP_AWAKE_MODE=during` protects only real activation runs.
+Set `KEEP_AWAKE_MODE=always` in the app if you want it to keep macOS awake while the menu bar
+app is open. Scheduled activation still works without the app running, and
+`KEEP_AWAKE_MODE=during` protects only real activation runs.
 
 ## Release Packaging
 
@@ -237,54 +283,59 @@ The output under `dist/` is split by audience:
 
 The project has two entry points — CLI and menu bar app — that share the same shell engine:
 
-```text
-┌──────────────────────────────────────────────────────────┐
-│                     Entry Points                         │
-│                                                          │
-│   ┌─────────────┐              ┌──────────────────────┐  │
-│   │   launchd    │              │  Menu Bar App        │  │
-│   │  (scheduled) │              │  (SwiftUI GUI)       │  │
-│   └──────┬──────┘              └──────────┬───────────┘  │
-│          │                                │              │
-│          │ triggers at                    │ calls via    │
-│          │ HH:MM                          │ Process()    │
-│          ▼                                ▼              │
-│   ┌─────────────────────────────────────────────────┐    │
-│   │          Shared Shell Scripts                    │    │
-│   │                                                 │    │
-│   │  bin/activate-ai-window.sh  (activation runner) │    │
-│   │  bin/activation-state.sh    (JSON state query)  │    │
-│   │  scripts/install-launchd.sh (launchd manager)   │    │
-│   └────────────────────┬────────────────────────────┘    │
-│                        │                                 │
-│               sends minimal prompt                       │
-│                        │                                 │
-│              ┌─────────┴─────────┐                       │
-│              ▼                   ▼                        │
-│        ┌───────────┐      ┌───────────┐                  │
-│        │Claude Code│      │  Codex    │                  │
-│        │   CLI     │      │   CLI     │                  │
-│        └───────────┘      └───────────┘                  │
-└──────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph entry["Entry points"]
+        L["launchd<br/><i>(scheduled at HH:MM)</i>"]
+        A["Menu bar app<br/><i>(SwiftUI GUI)</i>"]
+    end
+
+    subgraph engine["Shared shell engine"]
+        R["bin/activate-ai-window.sh<br/><i>activation runner</i>"]
+        S["bin/activation-state.sh<br/><i>JSON state query</i>"]
+        I["scripts/install-launchd.sh<br/><i>launchd manager</i>"]
+    end
+
+    C["Claude Code CLI"]
+    X["Codex CLI"]
+
+    L -- "triggers" --> R
+    A -- "Process()" --> R
+    A -- "Process()" --> S
+    A -- "Process()" --> I
+    R -- "minimal prompt" --> C
+    R -- "minimal prompt" --> X
 ```
 
 ### CLI Runtime Flow
 
-When launchd triggers at a scheduled time (or you run `./install.sh run-now`), the activation script executes this sequence:
+When launchd triggers at a scheduled time (or you run `./install.sh run-now`), the activation
+script executes this sequence:
 
-1. **Load config** — reads `.env` for schedule, tool selection, quota settings, and binary paths.
-2. **Acquire lock** — creates `run/activation.lock` to prevent concurrent runs; a second trigger during an active run is skipped gracefully.
-3. **Quota preflight** (optional) — queries Claude and Codex quota status *before* sending any prompt. If a tool's quota is exhausted, that tool is skipped and the skip is recorded in `logs/usage.jsonl`.
-4. **Send prompt** — calls each enabled CLI with a minimal prompt (`Reply exactly READY`). Claude runs in ultra-lightweight mode (see [Cost Optimization](#cost-optimization)). Codex runs with `--ephemeral`, `--skip-git-repo-check`, `--sandbox read-only`, and stripped-down config (see below).
-5. **Record usage** — parses each CLI's JSON output with `jq` and appends a structured record to `logs/usage.jsonl` (token counts, cost, session ID, model, duration, etc.).
-6. **Post-run snapshots** (optional) — takes another quota snapshot after activation and appends it to `logs/status.jsonl`.
+1. **Load config** — reads `.env` for schedule, tool selection, quota settings, and binary
+   paths.
+2. **Acquire lock** — creates `run/activation.lock` to prevent concurrent runs; a second
+   trigger during an active run is skipped gracefully.
+3. **Quota preflight** (optional) — queries Claude and Codex quota status *before* sending any
+   prompt. If a tool's quota is exhausted, that tool is skipped and the skip is recorded in
+   `logs/usage.jsonl`.
+4. **Send prompt** — calls each enabled CLI with a minimal prompt (`Reply exactly READY`).
+   Claude runs in ultra-lightweight mode (see [Cost Optimization](#cost-optimization)). Codex
+   runs on the configured lightweight model with `--ephemeral`, `--skip-git-repo-check`,
+   `--sandbox read-only`, and stripped-down config (see below).
+5. **Record usage** — parses each CLI's JSON output with `jq` and appends a structured record
+   to `logs/usage.jsonl` (token counts, cost, session ID, model, duration, etc.).
+6. **Post-run snapshots** (optional) — takes another quota snapshot after activation and
+   appends it to `logs/status.jsonl`.
 7. **Release lock** — removes the lock directory so the next scheduled run can proceed.
 
-Timeout protection: each CLI call is wrapped in a background process with a configurable timeout (default 120 s). If a CLI hangs, it receives SIGTERM, then SIGKILL after 2 s.
+Timeout protection: each CLI call is wrapped in a background process with a configurable timeout
+(default 120 s). If a CLI hangs, it receives SIGTERM, then SIGKILL after 2 s.
 
 ### Menu Bar App
 
-The SwiftUI app is a thin GUI shell — it does not contain its own scheduler or activation logic. Every operation delegates to the same shell scripts:
+The SwiftUI app is a thin GUI shell — it does not contain its own scheduler or activation logic.
+Every operation delegates to the same shell scripts:
 
 | App action | Shell call |
 | --- | --- |
@@ -293,11 +344,14 @@ The SwiftUI app is a thin GUI shell — it does not contain its own scheduler or
 | Save settings | Write `.env`, then `install.sh install` |
 | Run once | `install.sh run-now` |
 
-The app calls scripts through `Process()` (Foundation), reads stdout, and decodes the JSON into Swift model types.
+The app calls scripts through `Process()` (Foundation), reads stdout, and decodes the JSON into
+Swift model types.
 
 ### Where Does Activation Run?
 
-Both CLIs are invoked inside the **stoker project directory itself** — never inside your real projects. This is a lightweight folder that contains only scripts and logs, so there is nothing for the CLIs to scan or modify.
+Both CLIs are invoked inside the **stoker project directory itself** — never inside your real
+projects. This is a lightweight folder that contains only scripts and logs, so there is nothing
+for the CLIs to scan or modify.
 
 | Installation method | Working directory | Who creates it |
 | --- | --- | --- |
@@ -307,10 +361,16 @@ Both CLIs are invoked inside the **stoker project directory itself** — never i
 
 How the directory is resolved:
 
-- **Shell scripts**: `ROOT_DIR` is computed at runtime by walking up from the script's own location (`bin/`) to find the parent directory. This means the project works from any clone path without editing scripts.
-- **Menu bar app**: `ProjectLocator` walks up from the app bundle to find a directory containing `bin/activate-ai-window.sh`. For a standalone `.app`, it falls back to copying bundled scripts into Application Support and using that copy as the root.
+- **Shell scripts**: `ROOT_DIR` is computed at runtime by walking up from the script's own
+  location (`bin/`) to find the parent directory. This means the project works from any clone
+  path without editing scripts.
+- **Menu bar app**: `ProjectLocator` walks up from the app bundle to find a directory containing
+  `bin/activate-ai-window.sh`. For a standalone `.app`, it falls back to copying bundled scripts
+  into Application Support and using that copy as the root.
 
-The installer writes an absolute-path plist for macOS `launchd` and places it under `~/Library/LaunchAgents/`. The plist is intentionally git-ignored because it contains machine-specific paths.
+The installer writes an absolute-path plist for macOS `launchd` and places it under
+`~/Library/LaunchAgents/`. The plist is intentionally git-ignored because it contains
+machine-specific paths.
 
 ### Project Structure
 
@@ -322,7 +382,7 @@ stoker/
 ├── scripts/
 │   └── install-launchd.sh      ← launchd install/uninstall
 ├── app/
-│   └── StokerMenuBar/ ← SwiftUI menu bar app
+│   └── StokerMenuBar/          ← SwiftUI menu bar app
 ├── launchd/                    ← generated plist (git-ignored)
 ├── logs/                       ← generated logs
 │   ├── activation.log
@@ -334,11 +394,15 @@ stoker/
 └── README.md
 ```
 
-GitHub Actions only validates the repository scripts on push and pull requests. Scheduled activation always runs locally on the Mac where `./install.sh install` was executed.
+GitHub Actions only validates the repository scripts on push and pull requests. Scheduled
+activation always runs locally on the Mac where `./install.sh install` was executed.
 
 ## Cost Optimization
 
-Each activation only needs a single API round-trip — the prompt and response together are under 300 tokens. The cost challenge is the **system prompt** that each CLI injects automatically (CLAUDE.md, plugins, MCP tool descriptions, hooks, etc.), which can exceed 40 000 tokens per call.
+Each activation only needs a single API round-trip — the prompt and response together are under
+300 tokens. The cost challenge is the **system prompt** that each CLI injects automatically
+(CLAUDE.md, plugins, MCP tool descriptions, hooks, etc.), which can exceed 40 000 tokens per
+call.
 
 The runner strips both CLIs down to the absolute minimum context required:
 
@@ -354,7 +418,8 @@ The runner strips both CLIs down to the absolute minimum context required:
 | `--tools ""` | Disable all built-in tools |
 | `--disable-slash-commands` | Disable skills |
 
-Result: **~170 input tokens, ~$0.001 per activation** (vs ~40K tokens / ~$0.15 without optimization).
+Result: **~170 input tokens, ~$0.001 per activation** (vs ~40K tokens / ~$0.15 without
+optimization).
 
 ### Codex
 
@@ -362,6 +427,7 @@ Result: **~170 input tokens, ~$0.001 per activation** (vs ~40K tokens / ~$0.15 w
 | --- | --- |
 | `--ignore-user-config` | Skip `~/.codex/config.toml` — removes plugins, MCP servers, developer instructions |
 | `--ignore-rules` | Skip `.rules` files |
+| `--model "$CODEX_MODEL"` | Use the configured lightweight activation model (`gpt-5.4-mini` by default) |
 | `-c 'features.memories=false'` | Disable memories |
 | `-c 'features.multi_agent=false'` | Disable multi-agent |
 | `-c 'features.goals=false'` | Disable goals |
@@ -369,7 +435,9 @@ Result: **~170 input tokens, ~$0.001 per activation** (vs ~40K tokens / ~$0.15 w
 | `-c 'features.child_agents_md=false'` | Disable AGENTS.md loading |
 | `-c 'model_reasoning_effort="low"'` | Minimal reasoning effort |
 
-Result: **~22K input tokens** (vs ~32K without optimization). Codex's internal system prompt (~22K) is the floor — it cannot be stripped further, and ChatGPT accounts cannot switch to a lighter model.
+Result: **~22K input tokens** (vs ~32K without optimization). Codex's internal system prompt
+(~22K) is still the token floor, but `gpt-5.4-mini` spends the lighter local-message allowance
+for routine activation turns. Set `CODEX_MODEL=default` if you prefer the Codex CLI default.
 
 ### Monthly cost estimate (4 activations/day)
 
@@ -381,12 +449,20 @@ Result: **~22K input tokens** (vs ~32K without optimization). Codex's internal s
 ## Safety Notes
 
 - `dry-run` does not send model prompts.
-- `quota` only queries account/rate-limit status paths and local caches; it does not send a model prompt.
-- `run-now` and scheduled activation first run quota preflight, then send one small prompt per enabled tool only when quota appears available.
-- If quota is known to be exhausted, the tool is skipped and recorded in `logs/usage.jsonl` with `skipped: true`.
-- The Claude invocation uses `--model haiku`, `--setting-sources ""`, `--system-prompt`, `--effort low`, `--strict-mcp-config` with an empty config, no tools, no slash commands, and no session persistence. See [Cost Optimization](#cost-optimization) for details.
-- The Codex invocation uses `--ephemeral`, `--skip-git-repo-check`, `--sandbox read-only`, `--ignore-user-config`, `--ignore-rules`, and disables features like memories, multi-agent, goals, and hooks.
-- The generated plist is intentionally ignored by git because it contains machine-specific absolute paths.
+- `quota` only queries account/rate-limit status paths and local caches; it does not send a
+  model prompt.
+- `run-now` and scheduled activation first run quota preflight, then send one small prompt per
+  enabled tool only when quota appears available.
+- If quota is known to be exhausted, the tool is skipped and recorded in `logs/usage.jsonl`
+  with `skipped: true`.
+- The Claude invocation uses `--model haiku`, `--setting-sources ""`, `--system-prompt`,
+  `--effort low`, `--strict-mcp-config` with an empty config, no tools, no slash commands, and
+  no session persistence. See [Cost Optimization](#cost-optimization) for details.
+- The Codex invocation uses `--model "$CODEX_MODEL"`, `--ephemeral`, `--skip-git-repo-check`,
+  `--sandbox read-only`, `--ignore-user-config`, `--ignore-rules`, and disables features like
+  memories, multi-agent, goals, and hooks.
+- The generated plist is intentionally ignored by git because it contains machine-specific
+  absolute paths.
 
 ## Uninstall
 
@@ -394,7 +470,8 @@ Result: **~22K input tokens** (vs ~32K without optimization). Codex's internal s
 ./install.sh uninstall
 ```
 
-If you are migrating from an older local label, set `LEGACY_LABELS="old.label"` when installing so the old LaunchAgent is removed and does not double-trigger.
+If you are migrating from an older local label, set `LEGACY_LABELS="old.label"` when installing
+so the old LaunchAgent is removed and does not double-trigger.
 
 ## Contributing
 
@@ -409,6 +486,22 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development notes.
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for release history.
+
+## Disclaimer
+
+Stoker is an independent, open-source project. It is **not affiliated with, endorsed by, or
+sponsored by Anthropic, OpenAI, or Apple**. "Claude", "Claude Code", and "Anthropic" are
+trademarks of Anthropic; "Codex", "ChatGPT", and "OpenAI" are trademarks of OpenAI; "macOS" and
+"Apple" are trademarks of Apple Inc. — used here only to identify the tools Stoker works with.
+
+Stoker sends automated check-in prompts to the Claude Code and Codex CLIs on your behalf and
+consumes real usage/quota. **You are solely responsible** for ensuring your use complies with
+the applicable Terms of Service, usage policies, and rate limits of Anthropic and OpenAI, and
+for any resulting costs or account actions. The software is provided "as is", without warranty
+of any kind. Stoker runs entirely on your Mac and sends no data to the project authors.
+
+See **[DISCLAIMER.md](DISCLAIMER.md)** for the full disclaimer and trademark, privacy, and
+third-party notices, and **[SECURITY.md](SECURITY.md)** to report a vulnerability.
 
 ## License
 

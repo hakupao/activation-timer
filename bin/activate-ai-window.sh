@@ -39,6 +39,7 @@ fi
 NODE_BIN="${NODE_BIN:-$(command -v node 2>/dev/null || true)}"
 OMC_BIN="${OMC_BIN:-$(command -v omc 2>/dev/null || true)}"
 ACTIVATION_PROMPT="${ACTIVATION_PROMPT:-Reply exactly READY. Do not inspect files, run tools, or modify anything.}"
+CODEX_MODEL="${CODEX_MODEL:-gpt-5.4-mini}"
 TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-120}"
 ACTIVATION_TOOL="${ACTIVATION_TOOL:-all}"
 ENABLE_STATUS_SNAPSHOTS="${ENABLE_STATUS_SNAPSHOTS:-1}"
@@ -63,6 +64,7 @@ Environment overrides:
   CLAUDE_BIN=/path/to/claude
   CODEX_BIN=/path/to/codex
   ACTIVATION_PROMPT='Reply exactly READY...'
+  CODEX_MODEL=gpt-5.4-mini
   TIMEOUT_SECONDS=120
   ACTIVATION_TOOL=all
   ENABLE_STATUS_SNAPSHOTS=1
@@ -274,6 +276,7 @@ record_codex_usage() {
     --arg timestamp "$(timestamp)" \
     --arg run_id "$RUN_ID" \
     --arg tool "codex" \
+    --arg model "$CODEX_MODEL" \
     --argjson exit_code "$exit_code" \
     --arg raw_log "$output_file" '
       (split("\n") | map(select(length > 0) | try fromjson catch empty)) as $events
@@ -288,6 +291,7 @@ record_codex_usage() {
           exit_code: $exit_code,
           ok: ($exit_code == 0 and ($completed.type == "turn.completed")),
           thread_id: ($thread.thread_id // null),
+          model: $model,
           result: ($message.item.text // null),
           usage: ($completed.usage // null),
           failure: ($failed // null),
@@ -477,7 +481,7 @@ send({
   id: 1,
   method: "initialize",
   params: {
-    clientInfo: { name: "stoker", version: "0.2.1" },
+    clientInfo: { name: "stoker", version: "0.2.2" },
     capabilities: null,
   },
 });
@@ -750,6 +754,13 @@ run_codex() {
     -c 'features.codex_hooks=false'
     -c 'features.child_agents_md=false'
     -c 'model_reasoning_effort="low"'
+  )
+
+  if [[ "$CODEX_MODEL" != "default" ]]; then
+    cmd+=(--model "$CODEX_MODEL")
+  fi
+
+  cmd+=(
     --json
     "$ACTIVATION_PROMPT"
   )
@@ -780,6 +791,7 @@ run_check() {
   if [[ "$TOOL" == "all" || "$TOOL" == "codex" ]]; then
     if require_bin "Codex" "$CODEX_BIN"; then
       log "Codex binary: $CODEX_BIN ($("$CODEX_BIN" --version 2>&1 | tr '\n' ' '))"
+      log "Codex model: $CODEX_MODEL"
     else
       status=1
     fi
