@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="${ACTIVATION_TIMER_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+ROOT_DIR="${STOKER_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 ENV_FILE="${ROOT_DIR}/.env"
 
 if [[ -f "$ENV_FILE" ]]; then
@@ -15,7 +15,7 @@ if [[ -f "$ENV_FILE" ]]; then
   unset _saved_exports
 fi
 
-LABEL="${LABEL:-com.activation-timer.ai-window}"
+LABEL="${LABEL:-com.stoker.ai-window}"
 SCHEDULE_TIMES="${SCHEDULE_TIMES:-07:00,12:00,17:00,22:00}"
 ACTIVATION_TOOL="${ACTIVATION_TOOL:-all}"
 ENABLE_STATUS_SNAPSHOTS="${ENABLE_STATUS_SNAPSHOTS:-1}"
@@ -117,7 +117,7 @@ running=false
 launchctl_state="unavailable"
 launchctl_error=""
 
-if [[ "${ACTIVATION_TIMER_SKIP_LAUNCHCTL:-0}" == "1" ]]; then
+if [[ "${STOKER_SKIP_LAUNCHCTL:-0}" == "1" ]]; then
   launchctl_state="skipped"
 else
   launchctl_output="$(launchctl print "gui/${UID}/${LABEL}" 2>&1)" && launchctl_status=0 || launchctl_status=$?

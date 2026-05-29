@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for improving Activation Timer.
+Thanks for improving Stoker.
 
 ## Local Checks
 

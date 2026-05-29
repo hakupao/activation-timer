@@ -168,7 +168,7 @@ require_bin() {
 }
 
 maybe_reexec_with_caffeinate() {
-  if [[ "$MODE" != "once" || "$KEEP_AWAKE_MODE" == "off" || "${ACTIVATION_TIMER_CAFFEINATED:-0}" == "1" ]]; then
+  if [[ "$MODE" != "once" || "$KEEP_AWAKE_MODE" == "off" || "${STOKER_CAFFEINATED:-0}" == "1" ]]; then
     return 0
   fi
 
@@ -180,7 +180,7 @@ maybe_reexec_with_caffeinate() {
   fi
 
   log "Keep-awake enabled mode=${KEEP_AWAKE_MODE} seconds=${KEEP_AWAKE_SECONDS}"
-  ACTIVATION_TIMER_CAFFEINATED=1 exec "$caffeinate_bin" -i -t "$KEEP_AWAKE_SECONDS" "$BASH" "$0" "$@"
+  STOKER_CAFFEINATED=1 exec "$caffeinate_bin" -i -t "$KEEP_AWAKE_SECONDS" "$BASH" "$0" "$@"
 }
 
 run_with_timeout() {
@@ -477,7 +477,7 @@ send({
   id: 1,
   method: "initialize",
   params: {
-    clientInfo: { name: "activation-timer", version: "0.2.0" },
+    clientInfo: { name: "stoker", version: "0.2.0" },
     capabilities: null,
   },
 });

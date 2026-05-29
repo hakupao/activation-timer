@@ -1,12 +1,12 @@
-import ActivationTimerCore
+import StokerCore
 import AppKit
 import Foundation
 import ServiceManagement
 import SwiftUI
 
 @main
-struct ActivationTimerMenuBarApp: App {
-    @StateObject private var model = ActivationTimerAppModel()
+struct StokerMenuBarApp: App {
+    @StateObject private var model = StokerAppModel()
     @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
@@ -19,11 +19,11 @@ struct ActivationTimerMenuBarApp: App {
                 await model.refresh()
             }
         } label: {
-            Label("Activation Timer", systemImage: model.state?.installed == true ? "timer" : "timer.circle")
+            Label("Stoker", systemImage: model.state?.installed == true ? "timer" : "timer.circle")
         }
         .menuBarExtraStyle(.menu)
 
-        Window("Activation Timer", id: "main") {
+        Window("Stoker", id: "main") {
             MainView(model: model)
         }
         .defaultSize(width: 760, height: 720)
@@ -33,7 +33,7 @@ struct ActivationTimerMenuBarApp: App {
 // MARK: - Model
 
 @MainActor
-final class ActivationTimerAppModel: ObservableObject {
+final class StokerAppModel: ObservableObject {
     @Published var state: ActivationState?
     @Published var settings: AppSettings
     @Published var statusMessage = ""
@@ -309,7 +309,7 @@ struct PressButtonStyle: ButtonStyle {
 // MARK: - Menu
 
 struct MenuContentView: View {
-    @ObservedObject var model: ActivationTimerAppModel
+    @ObservedObject var model: StokerAppModel
     var openSettings: () -> Void
 
     var body: some View {
@@ -665,7 +665,7 @@ struct AppIconBadge: View {
 // MARK: - Schedule Card
 
 struct ScheduleCard: View {
-    @ObservedObject var model: ActivationTimerAppModel
+    @ObservedObject var model: StokerAppModel
     @State private var newHour = 8
     @State private var newMinute = 0
 
@@ -883,7 +883,7 @@ struct FlowLayout: Layout {
 // MARK: - Tool Card
 
 struct ToolCard: View {
-    @ObservedObject var model: ActivationTimerAppModel
+    @ObservedObject var model: StokerAppModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -964,7 +964,7 @@ struct ToolToggleTile: View {
 // MARK: - Advanced Settings (full-row clickable)
 
 struct AdvancedSection: View {
-    @ObservedObject var model: ActivationTimerAppModel
+    @ObservedObject var model: StokerAppModel
     @State private var isExpanded = false
 
     var body: some View {

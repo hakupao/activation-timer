@@ -1,4 +1,4 @@
-import ActivationTimerCore
+import StokerCore
 import Charts
 import SwiftUI
 
