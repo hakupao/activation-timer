@@ -1,0 +1,95 @@
+{
+  "$comment": "Stoker 'Forge' design language — SINGLE SOURCE OF TRUTH. Generates the Swift StokerTheme AND CSS :root custom properties. Spec: design/stoker-theme/THEME.md. All color values are WCAG-measured (see design/stoker-theme/AUDIT.md). Surfaces with {idle,active} drive the synchronized toggle-activation theme; everything else is flat per appearance.",
+  "name": "Stoker Forge",
+  "version": "1.0.0",
+
+  "primitives": {
+    "graphite": "#171716",
+    "graphite_2": "#232323",
+    "ink": "#0E0F0D",
+    "ember": "#E36E43",
+    "ember_hot": "#FFB15E",
+    "copper": "#B97A54",
+    "ivory": "#F3EEE6",
+    "ash": "#D6D0C7",
+    "sage": "#9EB392",
+    "sage_deep": "#64755F",
+    "mist": "#EAF0E9",
+    "ok": "#43B86C",
+    "warn": "#D89D38",
+    "danger": "#DC5B54",
+    "accent_deep": "#B5482A",
+    "ok_light": "#2E8F50",
+    "warn_light": "#A8741E",
+    "danger_light": "#C0392F"
+  },
+
+  "themes": {
+    "light": {
+      "surface":       { "idle": "#F4F0E9", "active": "#FBEFE3" },
+      "header":        { "idle": "#ECE6DC", "active": "#F6E2CE" },
+      "card":          { "idle": "#FBF8F2", "active": "#FFF6EC" },
+      "hairline":      "#DED7CD",
+      "fillSubtle":    "rgba(23,23,22,0.06)",
+      "onSurface":     "#1A1916",
+      "textSecondary": "#55514A",
+      "textMuted":     "#827C72",
+      "accent":        "#B97A54",
+      "accentOn":      "#D85A2C",
+      "accentText":    "#B5482A",
+      "positive":      "#2E8F50",
+      "warning":       "#A8741E",
+      "danger":        "#C0392F",
+      "accentSage":    "#5E7257",
+      "seriesClaude":  "#7B5FCB",
+      "seriesCodex":   "#1A8F58"
+    },
+    "dark": {
+      "surface":       { "idle": "#1B1B1A", "active": "#2B211A" },
+      "header":        { "idle": "#232322", "active": "#382819" },
+      "card":          { "idle": "#242423", "active": "#33271E" },
+      "hairline":      "rgba(243,238,230,0.12)",
+      "fillSubtle":    "rgba(243,238,230,0.08)",
+      "onSurface":     "#F1ECE3",
+      "textSecondary": "#B8B1A6",
+      "textMuted":     "#9D968B",
+      "accent":        "#B97A54",
+      "accentOn":      "#FF8A4D",
+      "accentText":    "#E36E43",
+      "accentHot":     "#FFB15E",
+      "positive":      "#43B86C",
+      "warning":       "#D89D38",
+      "danger":        "#DC5B54",
+      "accentSage":    "#9EB392",
+      "seriesClaude":  "#8F70D9",
+      "seriesCodex":   "#2EBF7D"
+    }
+  },
+
+  "typography": {
+    "fontStack": "\"SF Pro Display\", -apple-system, BlinkMacSystemFont, \"Inter\", system-ui, sans-serif",
+    "monoStack": "\"SF Mono\", ui-monospace, SFMono-Regular, Menlo, monospace",
+    "scale": {
+      "display": { "size": 20, "weight": "semibold", "rounded": true },
+      "title":   { "size": 16, "weight": "semibold" },
+      "body":    { "size": 13, "weight": "regular" },
+      "label":   { "size": 11, "weight": "medium" },
+      "caption": { "size": 10, "weight": "regular" },
+      "mono":    { "size": 11, "weight": "regular", "mono": true }
+    }
+  },
+
+  "spacing": { "xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 24 },
+
+  "radius": { "sm": 8, "md": 12, "lg": 18, "pill": 9999, "iconRatio": 0.213 },
+
+  "elevation": {
+    "e1": { "color": "rgba(0,0,0,0.12)", "blur": 8, "y": 3 }
+  },
+
+  "motion": {
+    "forgeTransition": { "curve": "easeInOut", "duration": 0.45 },
+    "ignite":          { "fromScale": 0.85, "toScale": 1.0, "duration": 0.3, "glowOpacity": 0.6, "glowRadius": 4 },
+    "press":           { "scale": 0.95, "duration": 0.1 }
+  }
+}

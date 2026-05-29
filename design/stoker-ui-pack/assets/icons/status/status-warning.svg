@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="status-warning">
+  <circle cx="32" cy="32" r="25" fill="#D89D38" opacity=".16"/>
+  <circle cx="32" cy="32" r="25" fill="none" stroke="#D89D38" stroke-width="4"/>
+  <path d='M32 18l18 31H14z' fill='none' stroke='#F3EEE6' stroke-width='4' stroke-linejoin='round'/><path d='M32 29v10' stroke='#F3EEE6' stroke-width='4' stroke-linecap='round'/><circle cx='32' cy='44' r='2.5' fill='#F3EEE6'/>
+</svg>

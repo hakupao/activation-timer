@@ -38,13 +38,14 @@ struct ActivityTabContent: View {
 private struct QuotaChart: View {
     @ObservedObject var logStore: LogStore
     @Binding var chartWindow: QuotaWindowType
+    @Environment(\.stokerTheme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(L10n.quotaTrend)
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(DS.textSecondary)
+                    .foregroundStyle(theme.textSecondary)
 
                 Spacer()
 
@@ -68,7 +69,7 @@ private struct QuotaChart: View {
             if data.isEmpty {
                 Text(L10n.noData)
                     .font(.system(size: 12))
-                    .foregroundStyle(DS.textMuted)
+                    .foregroundStyle(theme.textMuted)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
                 let claudeData = data.filter { $0.tool == "Claude" }
@@ -81,7 +82,7 @@ private struct QuotaChart: View {
                             y: .value("R", pt.remainingPercent),
                             series: .value("Tool", "Claude")
                         )
-                        .foregroundStyle(DS.claudePurple.opacity(0.12))
+                        .foregroundStyle(theme.seriesClaude.opacity(0.12))
                         .interpolationMethod(.monotone)
 
                         LineMark(
@@ -89,7 +90,7 @@ private struct QuotaChart: View {
                             y: .value("R", pt.remainingPercent),
                             series: .value("Tool", "Claude")
                         )
-                        .foregroundStyle(DS.claudePurple)
+                        .foregroundStyle(theme.seriesClaude)
                         .interpolationMethod(.monotone)
                         .lineStyle(StrokeStyle(lineWidth: 2))
                     }
@@ -100,7 +101,7 @@ private struct QuotaChart: View {
                             y: .value("R", pt.remainingPercent),
                             series: .value("Tool", "Codex")
                         )
-                        .foregroundStyle(DS.codexGreen.opacity(0.12))
+                        .foregroundStyle(theme.seriesCodex.opacity(0.12))
                         .interpolationMethod(.monotone)
 
                         LineMark(
@@ -108,7 +109,7 @@ private struct QuotaChart: View {
                             y: .value("R", pt.remainingPercent),
                             series: .value("Tool", "Codex")
                         )
-                        .foregroundStyle(DS.codexGreen)
+                        .foregroundStyle(theme.seriesCodex)
                         .interpolationMethod(.monotone)
                         .lineStyle(StrokeStyle(lineWidth: 2))
                     }
@@ -118,20 +119,20 @@ private struct QuotaChart: View {
                     AxisMarks(position: .leading, values: [0, 50, 100]) { value in
                         AxisValueLabel {
                             if let v = value.as(Int.self) {
-                                Text("\(v)%").font(.system(size: 10)).foregroundStyle(DS.textMuted)
+                                Text("\(v)%").font(.system(size: 10)).foregroundStyle(theme.textMuted)
                             }
                         }
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.3, dash: [4]))
-                            .foregroundStyle(DS.hairline)
+                            .foregroundStyle(theme.hairline)
                     }
                 }
                 .chartXAxis {
                     AxisMarks(values: .automatic(desiredCount: 4)) { _ in
                         AxisValueLabel(format: .dateTime.month(.abbreviated).day())
                             .font(.system(size: 9))
-                            .foregroundStyle(DS.textMuted)
+                            .foregroundStyle(theme.textMuted)
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.2))
-                            .foregroundStyle(DS.hairline)
+                            .foregroundStyle(theme.hairline)
                     }
                 }
                 .chartLegend(.hidden)
@@ -143,11 +144,11 @@ private struct QuotaChart: View {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.primary.opacity(0.03))
+                .fill(theme.card)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.05), lineWidth: 1)
+                .strokeBorder(theme.hairline, lineWidth: 1)
         )
     }
 }
@@ -156,15 +157,16 @@ private struct QuotaChart: View {
 
 private struct StatsStrip: View {
     @ObservedObject var logStore: LogStore
+    @Environment(\.stokerTheme) private var theme
 
     var body: some View {
         HStack(spacing: 8) {
-            StatPill(icon: "number", value: "\(logStore.totalRuns)", color: DS.accentBlue)
-            StatPill(icon: "checkmark", value: "\(logStore.successCount)", color: DS.activeGreen)
-            StatPill(icon: "forward.fill", value: "\(logStore.skippedCount)", color: DS.accentOrange)
-            StatPill(icon: "xmark", value: "\(logStore.errorCount)", color: .red)
+            StatPill(icon: "number", value: "\(logStore.totalRuns)", color: theme.accent)
+            StatPill(icon: "checkmark", value: "\(logStore.successCount)", color: theme.positive)
+            StatPill(icon: "forward.fill", value: "\(logStore.skippedCount)", color: theme.warning)
+            StatPill(icon: "xmark", value: "\(logStore.errorCount)", color: theme.danger)
             if let avg = logStore.averageCost {
-                StatPill(icon: "dollarsign", value: String(format: "$%.2f", avg), color: DS.textSecondary)
+                StatPill(icon: "dollarsign", value: String(format: "$%.2f", avg), color: theme.textSecondary)
             }
         }
     }
@@ -174,6 +176,7 @@ private struct StatPill: View {
     var icon: String
     var value: String
     var color: Color
+    @Environment(\.stokerTheme) private var theme
 
     var body: some View {
         HStack(spacing: 3) {
@@ -182,6 +185,7 @@ private struct StatPill: View {
                 .foregroundStyle(color)
             Text(value)
                 .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundStyle(theme.onSurface)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
@@ -195,6 +199,7 @@ private struct StatPill: View {
 private struct RunTimeline: View {
     @ObservedObject var logStore: LogStore
     @Binding var statusFilter: StatusFilter
+    @Environment(\.stokerTheme) private var theme
 
     var body: some View {
         let records: [UsageRecord] = {
@@ -207,7 +212,7 @@ private struct RunTimeline: View {
             HStack {
                 Text(L10n.runHistory)
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(DS.textSecondary)
+                    .foregroundStyle(theme.textSecondary)
 
                 Spacer()
 
@@ -223,7 +228,7 @@ private struct RunTimeline: View {
             if records.isEmpty {
                 Text(L10n.noRunsInRange)
                     .font(.system(size: 12))
-                    .foregroundStyle(DS.textMuted)
+                    .foregroundStyle(theme.textMuted)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
                 ScrollView {
@@ -243,19 +248,20 @@ private struct RunTimeline: View {
 
 private struct RunRow: View {
     var record: UsageRecord
+    @Environment(\.stokerTheme) private var theme
     @State private var isExpanded = false
     @State private var isHovered = false
 
     private var barColor: Color {
         switch record.status {
-        case .success: DS.activeGreen
-        case .skipped: DS.accentOrange
-        case .error: .red
+        case .success: theme.positive
+        case .skipped: theme.warning
+        case .error: theme.danger
         }
     }
 
     private var toolColor: Color {
-        record.tool == "claude" ? DS.claudePurple : DS.codexGreen
+        record.tool == "claude" ? theme.seriesClaude : theme.seriesCodex
     }
 
     private var resultText: String {
@@ -281,7 +287,7 @@ private struct RunRow: View {
                         if let date = record.date {
                             Text(LogTimestamp.display(date))
                                 .font(.system(size: 11, weight: .medium, design: .monospaced))
-                                .foregroundStyle(DS.textSecondary)
+                                .foregroundStyle(theme.textSecondary)
                                 .frame(width: 52, alignment: .leading)
                         }
 
@@ -300,12 +306,12 @@ private struct RunRow: View {
                         if let cost = record.totalCostUsd, cost > 0 {
                             Text(String(format: "$%.2f", cost))
                                 .font(.system(size: 10, weight: .medium, design: .monospaced))
-                                .foregroundStyle(DS.textMuted)
+                                .foregroundStyle(theme.textMuted)
                         }
 
                         Image(systemName: "chevron.right")
                             .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(DS.textMuted)
+                            .foregroundStyle(theme.textMuted)
                             .rotationEffect(.degrees(isExpanded ? 90 : 0))
                     }
                     .padding(.horizontal, 10)
@@ -323,7 +329,7 @@ private struct RunRow: View {
                 }
             }
         }
-        .background(isHovered ? Color.primary.opacity(0.04) : .clear)
+        .background(isHovered ? theme.fillSubtle : .clear)
         .onHover { isHovered = $0 }
         .animation(.easeInOut(duration: 0.1), value: isHovered)
     }
@@ -373,19 +379,20 @@ private struct RunDetail: View {
 private struct DetailChip: View {
     var label: String
     var value: String
+    @Environment(\.stokerTheme) private var theme
 
     var body: some View {
         HStack(spacing: 4) {
             Text(label)
-                .foregroundStyle(DS.textMuted)
+                .foregroundStyle(theme.textMuted)
             Text(value)
-                .foregroundStyle(DS.textSecondary)
+                .foregroundStyle(theme.textSecondary)
                 .fontWeight(.medium)
         }
         .font(.system(size: 11, design: .monospaced))
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
-        .background(Color.primary.opacity(0.04))
+        .background(theme.fillSubtle)
         .clipShape(Capsule())
     }
 }

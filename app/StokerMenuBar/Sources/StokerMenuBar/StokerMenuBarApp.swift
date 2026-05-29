@@ -19,7 +19,7 @@ struct StokerMenuBarApp: App {
                 await model.refresh()
             }
         } label: {
-            Label("Stoker", systemImage: model.state?.installed == true ? "timer" : "timer.circle")
+            MenuBarLabel()
         }
         .menuBarExtraStyle(.menu)
 
@@ -28,6 +28,36 @@ struct StokerMenuBarApp: App {
         }
         .defaultSize(width: 760, height: 720)
     }
+}
+
+// MARK: - Menu Bar Label
+
+/// The `MenuBarExtra` label: the branded monochrome Stoker mark (schedule-sweep arc +
+/// centered ember dot), loaded as a macOS TEMPLATE image so the system tints it for
+/// light/dark menu bars and the highlighted state. The icon no longer encodes
+/// installed/not-installed — schedule state is shown by the window + the menu's text rows.
+/// The accessible text ("Stoker") is preserved via `Label`. Falls back to an SF Symbol when
+/// the bundled template asset is unavailable (e.g. `swift run` without the built bundle).
+struct MenuBarLabel: View {
+    var body: some View {
+        if let icon = Self.templateIcon {
+            Label {
+                Text("Stoker")
+            } icon: {
+                Image(nsImage: icon)
+            }
+        } else {
+            Label("Stoker", systemImage: "timer")
+        }
+    }
+
+    /// The bundled menu bar template, loaded once and marked `isTemplate` so AppKit tints it.
+    private static let templateIcon: NSImage? = {
+        guard let image = NSImage(named: "MenuBarIcon") else { return nil }
+        image.isTemplate = true
+        image.size = NSSize(width: 18, height: 18)
+        return image
+    }()
 }
 
 // MARK: - Model
@@ -254,44 +284,129 @@ enum DS {
     static let cardRadius: CGFloat = 12
     static let cardPadding: CGFloat = 16
 
-    static let activeGreen = Color(red: 0.20, green: 0.78, blue: 0.35)
-    static let activeBg = Color(red: 0.12, green: 0.22, blue: 0.14)
-
-    // Subtle "schedule active" window wash that follows the system appearance:
-    // a faint green in Light mode, a deep green in Dark mode.
-    static let windowActiveTint = Color(nsColor: NSColor(name: nil) { appearance in
-        let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        return isDark
-            ? NSColor(srgbRed: 0.09, green: 0.15, blue: 0.11, alpha: 1)
-            : NSColor(srgbRed: 0.90, green: 0.96, blue: 0.92, alpha: 1)
-    })
-
-    // Adaptive text tiers — these resolve to the correct Light/Dark label colors
-    // automatically, so secondary text stays legible in either appearance.
+    // Primary text resolves to the correct Light/Dark label color automatically.
+    // (Secondary/muted/hairline now flow through StokerTheme so they participate
+    // in the synchronized appearance + state theming.)
     static let textPrimary = Color(nsColor: .labelColor)
-    static let textSecondary = Color(nsColor: .secondaryLabelColor)
-    static let textMuted = Color(nsColor: .tertiaryLabelColor)
-    static let hairline = Color(nsColor: .separatorColor)
-
-    static let accentBlue = Color(red: 0.25, green: 0.52, blue: 0.96)
-    static let accentOrange = Color(red: 0.95, green: 0.62, blue: 0.22)
-
-    static let claudePurple = Color(red: 0.56, green: 0.44, blue: 0.85)
-    static let codexGreen = Color(red: 0.18, green: 0.75, blue: 0.49)
-
-    static let cardBg = Color(nsColor: .controlBackgroundColor)
-    static let subtleBorder = Color.primary.opacity(0.06)
-
-    static func quotaColor(_ pct: Double?) -> Color {
-        guard let pct else { return .secondary }
-        if pct > 50 { return activeGreen }
-        if pct > 20 { return accentOrange }
-        return .red
-    }
 
     static func quotaLabel(_ pct: Double?) -> String {
         guard let pct else { return "--" }
         return "\(Int(pct.rounded()))%"
+    }
+}
+
+// MARK: - Stoker "Forge" Theme (appearance × state aware)
+//
+// Single source of truth: design/stoker-ui-pack/design-tokens.json.
+// A StokerTheme is a fully-resolved set of semantic role colors for ONE of the
+// four variants: (light/dark) × (idle/active). Surfaces (surface/header/card)
+// carry the idle→active warmth shift; everything else is flat per appearance.
+// Injected via EnvironmentKey so every subview reads the same resolved theme and
+// the whole window warms in lockstep off a single `value: isOn` transition.
+
+struct StokerTheme {
+    // Surfaces (idle/active warmth shift)
+    let surface: Color
+    let header: Color
+    let card: Color
+
+    // Lines / fills
+    let hairline: Color
+    let fillSubtle: Color
+
+    // Text tiers
+    let onSurface: Color
+    let textSecondary: Color
+    let textMuted: Color
+
+    // Accents
+    let accent: Color       // copper — idle chrome accents
+    let accentOn: Color     // ember — ON-signal: toggle tint + status dot
+    /// Contrast-safe ember for text/icons ON LIGHT surfaces: plain ember (#E36E43) fails
+    /// contrast on cream, so use accentText (#B5482A in Light) for any ember-colored text/icon.
+    let accentText: Color   // ember-as-text/icon (contrast-safe per appearance)
+    let accentHot: Color    // glow / hot-core highlight only (badge ember)
+
+    // Status
+    let positive: Color
+    let warning: Color
+    let danger: Color
+
+    // Minor cool accent
+    let accentSage: Color
+
+    // Data series (kept vendor identity: Claude purple / Codex green)
+    let seriesClaude: Color
+    let seriesCodex: Color
+
+    // The single coordinated "forge igniting" transition.
+    static let forgeTransition: Animation = .easeInOut(duration: 0.45)
+
+    /// Resolve the fully-specified theme for the current appearance and schedule state.
+    static func resolve(colorScheme: ColorScheme, isOn: Bool) -> StokerTheme {
+        switch colorScheme {
+        case .dark:
+            return StokerTheme(
+                surface:       hex(isOn ? 0x2B211A : 0x1B1B1A),
+                header:        hex(isOn ? 0x382819 : 0x232322),
+                card:          hex(isOn ? 0x33271E : 0x242423),
+                hairline:      Color(red: 243/255, green: 238/255, blue: 230/255, opacity: 0.12),
+                fillSubtle:    Color(red: 243/255, green: 238/255, blue: 230/255, opacity: 0.08),
+                onSurface:     hex(0xF1ECE3),
+                textSecondary: hex(0xB8B1A6),
+                textMuted:     hex(0x9D968B),
+                accent:        hex(0xB97A54),
+                accentOn:      hex(0xFF8A4D),
+                accentText:    hex(0xE36E43),
+                accentHot:     hex(0xFFB15E),
+                positive:      hex(0x43B86C),
+                warning:       hex(0xD89D38),
+                danger:        hex(0xDC5B54),
+                accentSage:    hex(0x9EB392),
+                seriesClaude:  hex(0x8F70D9),
+                seriesCodex:   hex(0x2EBF7D)
+            )
+        default: // .light
+            return StokerTheme(
+                surface:       hex(isOn ? 0xFBEFE3 : 0xF4F0E9),
+                header:        hex(isOn ? 0xF6E2CE : 0xECE6DC),
+                card:          hex(isOn ? 0xFFF6EC : 0xFBF8F2),
+                hairline:      hex(0xDED7CD),
+                fillSubtle:    Color(red: 23/255, green: 23/255, blue: 22/255, opacity: 0.06),
+                onSurface:     hex(0x1A1916),
+                textSecondary: hex(0x55514A),
+                textMuted:     hex(0x827C72),
+                accent:        hex(0xB97A54),
+                accentOn:      hex(0xD85A2C),
+                accentText:    hex(0xB5482A),
+                accentHot:     hex(0xFFB15E),
+                positive:      hex(0x2E8F50),
+                warning:       hex(0xA8741E),
+                danger:        hex(0xC0392F),
+                accentSage:    hex(0x5E7257),
+                seriesClaude:  hex(0x7B5FCB),
+                seriesCodex:   hex(0x1A8F58)
+            )
+        }
+    }
+
+    private static func hex(_ value: UInt32) -> Color {
+        Color(
+            red: Double((value >> 16) & 0xFF) / 255,
+            green: Double((value >> 8) & 0xFF) / 255,
+            blue: Double(value & 0xFF) / 255
+        )
+    }
+}
+
+private struct StokerThemeKey: EnvironmentKey {
+    static let defaultValue = StokerTheme.resolve(colorScheme: .light, isOn: false)
+}
+
+extension EnvironmentValues {
+    var stokerTheme: StokerTheme {
+        get { self[StokerThemeKey.self] }
+        set { self[StokerThemeKey.self] = newValue }
     }
 }
 
@@ -445,6 +560,7 @@ enum ToolChecker {
 struct OnboardingView: View {
     @Binding var isPresented: Bool
     var root: URL?
+    @Environment(\.stokerTheme) private var theme
     @AppStorage("hideOnboarding") private var hideOnboarding = false
     @State private var toolResults: [ToolChecker.ToolInfo] = []
     @State private var isChecking = true
@@ -461,26 +577,26 @@ struct OnboardingView: View {
             HStack(spacing: 12) {
                 Image(systemName: "wrench.and.screwdriver.fill")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(DS.accentOrange)
+                    .foregroundStyle(theme.accent)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L10n.environmentCheckTitle)
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                     Text(L10n.environmentCheckSubtitle)
                         .font(.system(size: 12))
-                        .foregroundStyle(DS.textSecondary)
+                        .foregroundStyle(theme.textSecondary)
                 }
                 Spacer()
             }
             .padding(DS.cardPadding)
 
-            Divider()
+            Rectangle().fill(theme.hairline).frame(height: 1)
 
             if isChecking {
                 HStack(spacing: 10) {
                     ProgressView().controlSize(.small)
                     Text(L10n.checking)
                         .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(theme.textSecondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 24)
@@ -506,7 +622,7 @@ struct OnboardingView: View {
                     isPresented = false
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(DS.accentBlue)
+                .tint(theme.accentOn)
                 .keyboardShortcut(.return, modifiers: [])
             }
             .padding(DS.cardPadding)
@@ -522,12 +638,13 @@ struct OnboardingView: View {
 struct ToolSectionCard: View {
     var title: String
     var tools: [ToolChecker.ToolInfo]
+    @Environment(\.stokerTheme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(DS.textSecondary)
+                .foregroundStyle(theme.textSecondary)
                 .textCase(.uppercase)
                 .padding(.horizontal, 4)
 
@@ -535,15 +652,18 @@ struct ToolSectionCard: View {
                 ForEach(Array(tools.enumerated()), id: \.element.name) { index, tool in
                     ToolStatusRow(tool: tool)
                     if index < tools.count - 1 {
-                        Divider().padding(.leading, DS.cardPadding)
+                        Rectangle()
+                            .fill(theme.hairline)
+                            .frame(height: 1)
+                            .padding(.leading, DS.cardPadding)
                     }
                 }
             }
-            .background(DS.cardBg)
+            .background(theme.card)
             .clipShape(RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
-                    .strokeBorder(DS.subtleBorder, lineWidth: 1)
+                    .strokeBorder(theme.hairline, lineWidth: 1)
             )
         }
     }
@@ -551,6 +671,7 @@ struct ToolSectionCard: View {
 
 struct ToolStatusRow: View {
     var tool: ToolChecker.ToolInfo
+    @Environment(\.stokerTheme) private var theme
 
     private var statusText: String {
         if tool.builtIn { return L10n.builtIn }
@@ -560,10 +681,10 @@ struct ToolStatusRow: View {
     }
 
     private var statusColor: Color {
-        if tool.builtIn { return DS.accentBlue }
-        if tool.found { return DS.activeGreen }
-        if tool.category == .optional { return DS.accentOrange }
-        return .red
+        if tool.builtIn { return theme.accent }
+        if tool.found { return theme.positive }
+        if tool.category == .optional { return theme.warning }
+        return theme.danger
     }
 
     private var statusIcon: String {
@@ -591,17 +712,17 @@ struct ToolStatusRow: View {
 
             Text(tool.toolDescription)
                 .font(.system(size: 11))
-                .foregroundStyle(DS.textSecondary)
+                .foregroundStyle(theme.textSecondary)
                 .padding(.leading, 26)
 
             if !tool.found && !tool.builtIn {
                 HStack(spacing: 6) {
                     Image(systemName: "terminal")
                         .font(.system(size: 10))
-                        .foregroundStyle(DS.textMuted)
+                        .foregroundStyle(theme.textMuted)
                     Text(tool.installHint)
                         .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(DS.textSecondary)
+                        .foregroundStyle(theme.textSecondary)
                         .textSelection(.enabled)
                 }
                 .padding(.leading, 26)
@@ -615,9 +736,10 @@ struct ToolStatusRow: View {
 struct NotificationBanner: View {
     var message: String
     var isError: Bool
+    @Environment(\.stokerTheme) private var theme
 
     private var icon: String { isError ? "xmark.circle.fill" : "checkmark.circle.fill" }
-    private var color: Color { isError ? .red : DS.activeGreen }
+    private var color: Color { isError ? theme.danger : theme.positive }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -634,31 +756,64 @@ struct NotificationBanner: View {
     }
 }
 
+// Stoker forge mark, native SwiftUI shapes (no external asset):
+// a graphite squircle housing a copper ring, a sage progress arc (upper-right),
+// and a central ember core that "stokes" with the schedule — dim copper when
+// idle, ignited ember (accentHot glow) when active.
 struct AppIconBadge: View {
+    var isOn: Bool = false
+
+    /// The real "Forge" app-icon art (the AI concept render), bundled into Resources as
+    /// AppBadge.png by build-app.sh so the in-window badge matches the Dock icon exactly.
+    /// Falls back to the native vector mark only for `swift run` (no app bundle to load from).
+    private static let iconImage: NSImage? = NSImage(named: "AppBadge")
+
+    var body: some View {
+        if let icon = Self.iconImage {
+            Image(nsImage: icon)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 44, height: 44)
+                .shadow(color: Color.black.opacity(0.12), radius: 6, x: 0, y: 2)
+        } else {
+            ForgeBadgeMark(isOn: isOn)
+        }
+    }
+}
+
+/// Native vector fallback for the in-window badge (used only when AppBadge.png is not bundled,
+/// e.g. `swift run`). Mirrors the Forge motif: graphite squircle + copper ring + sage arc + ember core.
+private struct ForgeBadgeMark: View {
+    var isOn: Bool
+
+    private let graphite = Color(red: 0x17 / 255, green: 0x17 / 255, blue: 0x16 / 255)
+    private let graphite2 = Color(red: 0x23 / 255, green: 0x23 / 255, blue: 0x23 / 255)
+    private let copper = Color(red: 0xB9 / 255, green: 0x7A / 255, blue: 0x54 / 255)
+    private let sage = Color(red: 0x9E / 255, green: 0xB3 / 255, blue: 0x92 / 255)
+    private let ember = Color(red: 0xE3 / 255, green: 0x6E / 255, blue: 0x43 / 255)
+    private let emberHot = Color(red: 0xFF / 255, green: 0xB1 / 255, blue: 0x5E / 255)
+
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.10, green: 0.31, blue: 0.70),
-                            Color(red: 0.03, green: 0.62, blue: 0.58),
-                            Color(red: 0.95, green: 0.67, blue: 0.22)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            Image(systemName: "timer")
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(.white)
-            Image(systemName: "bolt.fill")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(Color(red: 1.0, green: 0.74, blue: 0.22))
-                .offset(x: 12, y: -11)
+                .fill(LinearGradient(colors: [graphite2, graphite], startPoint: .topLeading, endPoint: .bottomTrailing))
+            Circle()
+                .strokeBorder(copper.opacity(0.85), lineWidth: 2)
+                .frame(width: 26, height: 26)
+            Circle()
+                .trim(from: 0.0, to: 0.28)
+                .stroke(sage, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                .frame(width: 26, height: 26)
+                .rotationEffect(.degrees(-90))
+            Circle()
+                .fill(RadialGradient(colors: isOn ? [emberHot, ember] : [copper, copper.opacity(0.7)],
+                                     center: .center, startRadius: 0, endRadius: 7))
+                .frame(width: 12, height: 12)
+                .shadow(color: isOn ? emberHot.opacity(0.7) : .clear, radius: isOn ? 6 : 0)
         }
         .frame(width: 44, height: 44)
-        .shadow(color: Color.black.opacity(0.15), radius: 6, x: 0, y: 3)
+        .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 3)
+        .animation(StokerTheme.forgeTransition, value: isOn)
     }
 }
 
@@ -666,6 +821,7 @@ struct AppIconBadge: View {
 
 struct ScheduleCard: View {
     @ObservedObject var model: StokerAppModel
+    @Environment(\.stokerTheme) private var theme
     @State private var newHour = 8
     @State private var newMinute = 0
 
@@ -676,7 +832,7 @@ struct ScheduleCard: View {
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
             } icon: {
                 Image(systemName: "calendar.badge.clock")
-                    .foregroundStyle(DS.accentBlue)
+                    .foregroundStyle(theme.accent)
             }
 
             FlowLayout(spacing: 8) {
@@ -699,11 +855,11 @@ struct ScheduleCard: View {
         .padding(DS.cardPadding)
         .background(
             RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
-                .fill(DS.cardBg)
+                .fill(theme.card)
         )
         .overlay(
             RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
-                .strokeBorder(DS.subtleBorder, lineWidth: 1)
+                .strokeBorder(theme.hairline, lineWidth: 1)
         )
     }
 }
@@ -713,16 +869,18 @@ struct TimePill: View {
     var canDelete: Bool
     var onDelete: () -> Void
 
+    @Environment(\.stokerTheme) private var theme
     @State private var isHovering = false
 
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: "clock.fill")
                 .font(.system(size: 10))
-                .foregroundStyle(DS.accentBlue.opacity(0.7))
+                .foregroundStyle(theme.accent.opacity(0.85))
 
             Text(time)
                 .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                .foregroundStyle(theme.onSurface)
 
             if canDelete && isHovering {
                 Button {
@@ -730,7 +888,7 @@ struct TimePill: View {
                 } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(theme.textSecondary)
                 }
                 .buttonStyle(.plain)
                 .transition(.scale.combined(with: .opacity))
@@ -738,9 +896,9 @@ struct TimePill: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
-        .background(DS.accentBlue.opacity(isHovering ? 0.12 : 0.06))
+        .background(theme.accent.opacity(isHovering ? 0.16 : 0.08))
         .clipShape(Capsule())
-        .overlay(Capsule().strokeBorder(DS.accentBlue.opacity(0.15), lineWidth: 1))
+        .overlay(Capsule().strokeBorder(theme.accent.opacity(0.2), lineWidth: 1))
         .onHover { isHovering = $0 }
         .animation(.easeInOut(duration: 0.15), value: isHovering)
     }
@@ -751,6 +909,7 @@ struct AddTimePill: View {
     @Binding var minute: Int
     var onAdd: () -> Void
 
+    @Environment(\.stokerTheme) private var theme
     @State private var isExpanded = false
 
     var body: some View {
@@ -766,7 +925,7 @@ struct AddTimePill: View {
 
                 Text(":")
                     .font(.system(size: 14, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(theme.textSecondary)
 
                 Picker("", selection: $minute) {
                     ForEach(0..<60, id: \.self) { m in
@@ -784,7 +943,7 @@ struct AddTimePill: View {
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(.white)
                         .frame(width: 22, height: 22)
-                        .background(DS.accentBlue)
+                        .background(theme.accentOn)
                         .clipShape(Circle())
                 }
                 .buttonStyle(PressButtonStyle())
@@ -794,16 +953,16 @@ struct AddTimePill: View {
                 } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(theme.textSecondary)
                         .frame(width: 22, height: 22)
-                        .background(Color.primary.opacity(0.06))
+                        .background(theme.fillSubtle)
                         .clipShape(Circle())
                 }
                 .buttonStyle(PressButtonStyle())
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Color.primary.opacity(0.04))
+            .background(theme.fillSubtle)
             .clipShape(Capsule())
             .transition(.scale.combined(with: .opacity))
         } else {
@@ -818,13 +977,13 @@ struct AddTimePill: View {
                     Text(L10n.add)
                         .font(.system(size: 12, weight: .medium))
                 }
-                .foregroundStyle(DS.textSecondary)
+                .foregroundStyle(theme.textSecondary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
-                .background(Color.primary.opacity(0.04))
+                .background(theme.fillSubtle)
                 .clipShape(Capsule())
                 .overlay(
-                    Capsule().strokeBorder(Color.primary.opacity(0.08), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                    Capsule().strokeBorder(theme.hairline, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
                 )
             }
             .buttonStyle(PressButtonStyle())
@@ -884,6 +1043,7 @@ struct FlowLayout: Layout {
 
 struct ToolCard: View {
     @ObservedObject var model: StokerAppModel
+    @Environment(\.stokerTheme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -892,20 +1052,20 @@ struct ToolCard: View {
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
             } icon: {
                 Image(systemName: "wrench.and.screwdriver")
-                    .foregroundStyle(DS.accentOrange)
+                    .foregroundStyle(theme.accent)
             }
 
             HStack(spacing: 10) {
                 ToolToggleTile(
                     name: "Claude",
                     icon: "c.circle.fill",
-                    color: DS.claudePurple,
+                    color: theme.seriesClaude,
                     isOn: $model.settings.enableClaude
                 )
                 ToolToggleTile(
                     name: "Codex",
                     icon: "chevron.left.forwardslash.chevron.right",
-                    color: DS.codexGreen,
+                    color: theme.seriesCodex,
                     isOn: $model.settings.enableCodex
                 )
             }
@@ -913,11 +1073,11 @@ struct ToolCard: View {
         .padding(DS.cardPadding)
         .background(
             RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
-                .fill(DS.cardBg)
+                .fill(theme.card)
         )
         .overlay(
             RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
-                .strokeBorder(DS.subtleBorder, lineWidth: 1)
+                .strokeBorder(theme.hairline, lineWidth: 1)
         )
     }
 }
@@ -928,6 +1088,8 @@ struct ToolToggleTile: View {
     var color: Color
     var isOn: Binding<Bool>
 
+    @Environment(\.stokerTheme) private var theme
+
     var body: some View {
         Button {
             isOn.wrappedValue.toggle()
@@ -935,25 +1097,25 @@ struct ToolToggleTile: View {
             HStack(spacing: 10) {
                 Image(systemName: icon)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(isOn.wrappedValue ? color : .secondary.opacity(0.5))
+                    .foregroundStyle(isOn.wrappedValue ? color : theme.textMuted)
 
                 Text(name)
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(isOn.wrappedValue ? .primary : .secondary)
+                    .foregroundStyle(isOn.wrappedValue ? theme.onSurface : theme.textSecondary)
 
                 Spacer()
 
                 Image(systemName: isOn.wrappedValue ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 16))
-                    .foregroundStyle(isOn.wrappedValue ? color : .secondary.opacity(0.3))
+                    .foregroundStyle(isOn.wrappedValue ? color : theme.textMuted.opacity(0.6))
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(isOn.wrappedValue ? color.opacity(0.08) : Color.primary.opacity(0.02))
+            .background(isOn.wrappedValue ? color.opacity(0.08) : theme.fillSubtle)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(isOn.wrappedValue ? color.opacity(0.3) : Color.primary.opacity(0.06), lineWidth: 1)
+                    .strokeBorder(isOn.wrappedValue ? color.opacity(0.3) : theme.hairline, lineWidth: 1)
             )
         }
         .buttonStyle(PressButtonStyle())
@@ -965,6 +1127,7 @@ struct ToolToggleTile: View {
 
 struct AdvancedSection: View {
     @ObservedObject var model: StokerAppModel
+    @Environment(\.stokerTheme) private var theme
     @State private var isExpanded = false
 
     var body: some View {
@@ -977,21 +1140,21 @@ struct AdvancedSection: View {
                 HStack(spacing: 8) {
                     Image(systemName: "gearshape")
                         .font(.system(size: 13))
-                        .foregroundStyle(DS.textSecondary)
+                        .foregroundStyle(theme.textSecondary)
                     Text(L10n.advanced)
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(DS.textSecondary)
+                        .foregroundStyle(theme.textSecondary)
 
                     Spacer()
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(DS.textMuted)
+                        .foregroundStyle(theme.textMuted)
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .background(Color.primary.opacity(0.03))
+                .background(theme.fillSubtle)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .contentShape(Rectangle())
             }
@@ -1004,7 +1167,7 @@ struct AdvancedSection: View {
 
                     VStack(alignment: .leading, spacing: 6) {
                         Text(L10n.whenQuotaUnavailable)
-                            .foregroundStyle(DS.textSecondary)
+                            .foregroundStyle(theme.textSecondary)
                         Picker("", selection: $model.settings.quotaPreflightOnUnknown) {
                             Text(L10n.continueAnyway).tag("allow")
                             Text(L10n.skip).tag("skip")
@@ -1013,11 +1176,11 @@ struct AdvancedSection: View {
                         .labelsHidden()
                     }
 
-                    Divider()
+                    Rectangle().fill(theme.hairline).frame(height: 1)
 
                     VStack(alignment: .leading, spacing: 6) {
                         Text(L10n.keepAwake)
-                            .foregroundStyle(DS.textSecondary)
+                            .foregroundStyle(theme.textSecondary)
                         Picker("", selection: $model.settings.keepAwakeMode) {
                             Text(L10n.off).tag("off")
                             Text(L10n.duringRun).tag("during")
@@ -1036,7 +1199,7 @@ struct AdvancedSection: View {
                             .textFieldStyle(.roundedBorder)
                     }
 
-                    Divider()
+                    Rectangle().fill(theme.hairline).frame(height: 1)
 
                     // Launch at Login toggle
                     Toggle(L10n.launchAtLogin, isOn: Binding(
@@ -1046,7 +1209,7 @@ struct AdvancedSection: View {
                 }
                 .font(.system(size: 13))
                 .padding(16)
-                .background(Color.primary.opacity(0.02))
+                .background(theme.fillSubtle)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }

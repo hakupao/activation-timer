@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Stoker app icon — forge aperture with ember core">
+  <!--
+    Stoker "Forge" app icon — CANONICAL VECTOR SOURCE (full detail, 128px+ tier).
+    Form: transparent-corner continuous-curve squircle (graphite->sage diagonal gradient),
+    copper tick ring, sage progress arc (upper-right), 6-blade camera aperture, glowing ember core.
+    Per-size simplified variants for the 16/32/64 iconset slots live in:
+      stoker-app-icon-16.svg, stoker-app-icon-32.svg, stoker-app-icon-64.svg
+    Spec: design/stoker-theme/THEME.md §9, §11. Palette: design/stoker-ui-pack/design-tokens.json.
+    Geometry is generated deterministically (see tools/generate_stoker_assets.py icon_paths()).
+  -->
+  <defs>
+    <linearGradient id="card" x1="120" y1="100" x2="910" y2="930" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#121211"/>
+      <stop offset="0.62" stop-color="#242522"/>
+      <stop offset="1" stop-color="#374033"/>
+    </linearGradient>
+    <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#FFB15E" stop-opacity="0.5"/>
+      <stop offset="0.6" stop-color="#E36E43" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#E36E43" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ember" cx="50%" cy="46%" r="52%">
+      <stop offset="0" stop-color="#FFB15E"/>
+      <stop offset="0.5" stop-color="#E36E43"/>
+      <stop offset="1" stop-color="#D8602F"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Body: continuous-curve squircle (superellipse n=5), transparent outside -->
+  <path fill="url(#card)" d="M1008.00 512.00 L1007.73 664.41 L1006.91 712.99 L1005.55 748.16 L1003.64 776.63 L1001.17 800.86 L998.14 822.08 L994.55 841.01 L990.38 858.10 L985.62 873.66 L980.27 887.90 L974.29 900.98 L967.69 913.02 L960.42 924.13 L952.46 934.36 L943.79 943.79 L934.36 952.46 L924.13 960.42 L913.02 967.69 L900.98 974.29 L887.90 980.27 L873.66 985.62 L858.10 990.38 L841.01 994.55 L822.08 998.14 L800.86 1001.17 L776.63 1003.64 L748.16 1005.55 L712.99 1006.91 L664.41 1007.73 L512.00 1008.00 L359.59 1007.73 L311.01 1006.91 L275.84 1005.55 L247.37 1003.64 L223.14 1001.17 L201.92 998.14 L182.99 994.55 L165.90 990.38 L150.34 985.62 L136.10 980.27 L123.02 974.29 L110.98 967.69 L99.87 960.42 L89.64 952.46 L80.21 943.79 L71.54 934.36 L63.58 924.13 L56.31 913.02 L49.71 900.98 L43.73 887.90 L38.38 873.66 L33.62 858.10 L29.45 841.01 L25.86 822.08 L22.83 800.86 L20.36 776.63 L18.45 748.16 L17.09 712.99 L16.27 664.41 L16.00 512.00 L16.27 359.59 L17.09 311.01 L18.45 275.84 L20.36 247.37 L22.83 223.14 L25.86 201.92 L29.45 182.99 L33.62 165.90 L38.38 150.34 L43.73 136.10 L49.71 123.02 L56.31 110.98 L63.58 99.87 L71.54 89.64 L80.21 80.21 L89.64 71.54 L99.87 63.58 L110.98 56.31 L123.02 49.71 L136.10 43.73 L150.34 38.38 L165.90 33.62 L182.99 29.45 L201.92 25.86 L223.14 22.83 L247.37 20.36 L275.84 18.45 L311.01 17.09 L359.59 16.27 L512.00 16.00 L664.41 16.27 L712.99 17.09 L748.16 18.45 L776.63 20.36 L800.86 22.83 L822.08 25.86 L841.01 29.45 L858.10 33.62 L873.66 38.38 L887.90 43.73 L900.98 49.71 L913.02 56.31 L924.13 63.58 L934.36 71.54 L943.79 80.21 L952.46 89.64 L960.42 99.87 L967.69 110.98 L974.29 123.02 L980.27 136.10 L985.62 150.34 L990.38 165.90 L994.55 182.99 L998.14 201.92 L1001.17 223.14 L1003.64 247.37 L1005.55 275.84 L1006.91 311.01 L1007.73 359.59 L1008.00 512.00 Z"/>
+  <!-- Satin inner highlight rim -->
+  <path fill="none" stroke="#F3EEE6" stroke-opacity="0.06" stroke-width="3" d="M1008.00 512.00 L1007.73 664.41 L1006.91 712.99 L1005.55 748.16 L1003.64 776.63 L1001.17 800.86 L998.14 822.08 L994.55 841.01 L990.38 858.10 L985.62 873.66 L980.27 887.90 L974.29 900.98 L967.69 913.02 L960.42 924.13 L952.46 934.36 L943.79 943.79 L934.36 952.46 L924.13 960.42 L913.02 967.69 L900.98 974.29 L887.90 980.27 L873.66 985.62 L858.10 990.38 L841.01 994.55 L822.08 998.14 L800.86 1001.17 L776.63 1003.64 L748.16 1005.55 L712.99 1006.91 L664.41 1007.73 L512.00 1008.00 L359.59 1007.73 L311.01 1006.91 L275.84 1005.55 L247.37 1003.64 L223.14 1001.17 L201.92 998.14 L182.99 994.55 L165.90 990.38 L150.34 985.62 L136.10 980.27 L123.02 974.29 L110.98 967.69 L99.87 960.42 L89.64 952.46 L80.21 943.79 L71.54 934.36 L63.58 924.13 L56.31 913.02 L49.71 900.98 L43.73 887.90 L38.38 873.66 L33.62 858.10 L29.45 841.01 L25.86 822.08 L22.83 800.86 L20.36 776.63 L18.45 748.16 L17.09 712.99 L16.27 664.41 L16.00 512.00 L16.27 359.59 L17.09 311.01 L18.45 275.84 L20.36 247.37 L22.83 223.14 L25.86 201.92 L29.45 182.99 L33.62 165.90 L38.38 150.34 L43.73 136.10 L49.71 123.02 L56.31 110.98 L63.58 99.87 L71.54 89.64 L80.21 80.21 L89.64 71.54 L99.87 63.58 L110.98 56.31 L123.02 49.71 L136.10 43.73 L150.34 38.38 L165.90 33.62 L182.99 29.45 L201.92 25.86 L223.14 22.83 L247.37 20.36 L275.84 18.45 L311.01 17.09 L359.59 16.27 L512.00 16.00 L664.41 16.27 L712.99 17.09 L748.16 18.45 L776.63 20.36 L800.86 22.83 L822.08 25.86 L841.01 29.45 L858.10 33.62 L873.66 38.38 L887.90 43.73 L900.98 49.71 L913.02 56.31 L924.13 63.58 L934.36 71.54 L943.79 80.21 L952.46 89.64 L960.42 99.87 L967.69 110.98 L974.29 123.02 L980.27 136.10 L985.62 150.34 L990.38 165.90 L994.55 182.99 L998.14 201.92 L1001.17 223.14 L1003.64 247.37 L1005.55 275.84 L1006.91 311.01 L1007.73 359.59 L1008.00 512.00 Z"/>
+
+  <!-- Copper tick ring (hairline) -->
+  <circle cx="512" cy="504" r="286" fill="none" stroke="#B97A54" stroke-width="3" opacity="0.8"/>
+
+  <!-- 12 copper ticks at 30deg (long when idx%3==0) -->
+  <g stroke="#B97A54" stroke-linecap="round" opacity="0.95">
+    <line x1="512.00" y1="210.00" x2="512.00" y2="180.00" stroke-width="9"/>
+    <line x1="659.00" y1="249.39" x2="668.00" y2="233.80" stroke-width="6"/>
+    <line x1="766.61" y1="357.00" x2="782.20" y2="348.00" stroke-width="6"/>
+    <line x1="806.00" y1="504.00" x2="836.00" y2="504.00" stroke-width="9"/>
+    <line x1="766.61" y1="651.00" x2="782.20" y2="660.00" stroke-width="6"/>
+    <line x1="659.00" y1="758.61" x2="668.00" y2="774.20" stroke-width="6"/>
+    <line x1="512.00" y1="798.00" x2="512.00" y2="828.00" stroke-width="9"/>
+    <line x1="365.00" y1="758.61" x2="356.00" y2="774.20" stroke-width="6"/>
+    <line x1="257.39" y1="651.00" x2="241.80" y2="660.00" stroke-width="6"/>
+    <line x1="218.00" y1="504.00" x2="188.00" y2="504.00" stroke-width="9"/>
+    <line x1="257.39" y1="357.00" x2="241.80" y2="348.00" stroke-width="6"/>
+    <line x1="365.00" y1="249.39" x2="356.00" y2="233.80" stroke-width="6"/>
+  </g>
+
+  <!-- Sage progress arc, upper-right quadrant -->
+  <path fill="none" stroke="#9EB392" stroke-width="42" stroke-linecap="round" d="M369.00 256.32 A286.0 286.0 0 0 1 788.25 429.98"/>
+
+  <!-- 6-blade aperture (alternating tone, thin ember edge) -->
+  <g>
+    <path fill="#262626" stroke="#E36E43" stroke-width="2" stroke-opacity="0.55" d="M512.00 412.00 L598.60 462.00 L707.52 498.33 A196.00 196.00 0 0 0 597.92 335.84 Z"/>
+    <path fill="#1c1c1c" stroke="#E36E43" stroke-width="2" stroke-opacity="0.55" d="M598.60 462.00 L598.60 562.00 L621.60 674.49 A196.00 196.00 0 0 0 707.52 498.33 Z"/>
+    <path fill="#262626" stroke="#E36E43" stroke-width="2" stroke-opacity="0.55" d="M598.60 562.00 L512.00 612.00 L426.08 688.16 A196.00 196.00 0 0 0 621.60 674.49 Z"/>
+    <path fill="#1c1c1c" stroke="#E36E43" stroke-width="2" stroke-opacity="0.55" d="M512.00 612.00 L425.40 562.00 L316.48 525.67 A196.00 196.00 0 0 0 426.08 688.16 Z"/>
+    <path fill="#262626" stroke="#E36E43" stroke-width="2" stroke-opacity="0.55" d="M425.40 562.00 L425.40 462.00 L402.40 349.51 A196.00 196.00 0 0 0 316.48 525.67 Z"/>
+    <path fill="#1c1c1c" stroke="#E36E43" stroke-width="2" stroke-opacity="0.55" d="M425.40 462.00 L512.00 412.00 L597.92 335.84 A196.00 196.00 0 0 0 402.40 349.51 Z"/>
+  </g>
+
+  <!-- Ember inner edge (aperture opening) -->
+  <path fill="none" stroke="#E36E43" stroke-width="3" stroke-opacity="0.9" d="M512.00 412.00 L598.60 462.00 L598.60 562.00 L512.00 612.00 L425.40 562.00 L425.40 462.00 Z"/>
+
+  <!-- Ember core: contained glow + solid disc + hot highlight -->
+  <circle cx="512" cy="512" r="150" fill="url(#coreGlow)"/>
+  <circle cx="512" cy="512" r="88" fill="url(#ember)"/>
+  <circle cx="512" cy="512" r="47" fill="#FFB15E" opacity="0.8"/>
+</svg>

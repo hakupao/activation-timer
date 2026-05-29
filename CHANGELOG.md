@@ -2,7 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.2.1 - 2026-05-29
+
+### "Forge" design language — refreshed UI and icon
+- New ember-on-graphite visual system. When the schedule turns on, the **entire window — header included — warms together** from a cool idle palette to a warm ember "active" state, in both Light and Dark. This replaces the old partial pale-green tint that only covered part of the window.
+- Introduced an appearance- and state-aware `StokerTheme` (Light/Dark × idle/active) driven from a single `design-tokens.json`; all text/surface pairings are WCAG contrast-checked.
+- New app icon: an ember/aperture "forge" mark replacing the generic blue/teal/gold clock-and-bolt, with transparent squircle corners and distinct simplified artwork at small sizes. The Dock icon, the in-window badge, and the menu-bar mark are now consistent.
+- The menu-bar icon is now a branded monochrome template mark instead of the stock SF "timer" symbol.
 
 ### Project rename — Activation Timer is now Stoker
 - Renamed the project and app from **Activation Timer** to **Stoker** (Chinese name 司炉 — the person who keeps a furnace fed so the fire never goes out).

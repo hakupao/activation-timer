@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Stoker app icon (16px tier)">
+  <!--
+    Stoker app icon — 16px DETAIL TIER (rendered into icon_16x16.png at 16px).
+    Simplified: darkened squircle body + large hot ember disc (radius 130 ~ 25% of width) + one short sage arc stub.
+    NO ring, NO ticks, NO aperture blades. Body darkened toward #141413, ember pushed hot for pop at 16px.
+  -->
+  <defs>
+    <radialGradient id="ember16" cx="50%" cy="46%" r="55%">
+      <stop offset="0" stop-color="#FFB15E"/>
+      <stop offset="0.55" stop-color="#F07845"/>
+      <stop offset="1" stop-color="#E15F32"/>
+    </radialGradient>
+  </defs>
+  <path fill="#15151B" d="M1008.00 512.00 L1006.91 712.99 L1003.64 776.63 L998.14 822.08 L990.38 858.10 L980.27 887.90 L967.69 913.02 L952.46 934.36 L934.36 952.46 L913.02 967.69 L887.90 980.27 L858.10 990.38 L822.08 998.14 L776.63 1003.64 L712.99 1006.91 L512.00 1008.00 L311.01 1006.91 L247.37 1003.64 L201.92 998.14 L165.90 990.38 L136.10 980.27 L110.98 967.69 L89.64 952.46 L71.54 934.36 L56.31 913.02 L43.73 887.90 L33.62 858.10 L25.86 822.08 L20.36 776.63 L17.09 712.99 L16.00 512.00 L17.09 311.01 L20.36 247.37 L25.86 201.92 L33.62 165.90 L43.73 136.10 L56.31 110.98 L71.54 89.64 L89.64 71.54 L110.98 56.31 L136.10 43.73 L165.90 33.62 L201.92 25.86 L247.37 20.36 L311.01 17.09 L512.00 16.00 L712.99 17.09 L776.63 20.36 L822.08 25.86 L858.10 33.62 L887.90 43.73 L913.02 56.31 L934.36 71.54 L952.46 89.64 L967.69 110.98 L980.27 136.10 L990.38 165.90 L998.14 201.92 L1003.64 247.37 L1006.91 311.01 L1008.00 512.00 Z"/>
+  <path fill="none" stroke="#9EB392" stroke-width="64" stroke-linecap="round" d="M487.07 219.09 A286 286 0 0 1 746.28 339.96"/>
+  <circle cx="512" cy="512" r="138" fill="url(#ember16)"/>
+  <circle cx="512" cy="500" r="64" fill="#FFB15E"/>
+</svg>

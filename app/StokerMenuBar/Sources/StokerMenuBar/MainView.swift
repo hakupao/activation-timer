@@ -26,6 +26,7 @@ struct MainView: View {
 
 private struct MainPanel: View {
     @ObservedObject var model: StokerAppModel
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var logStore: LogStore
     @State private var selectedTab = MainTab.activity
     @State private var langRefresh = false
@@ -39,10 +40,15 @@ private struct MainPanel: View {
 
     private var isOn: Bool { model.state?.installed == true }
 
+    // The single resolved theme for this appearance + schedule state. Injected
+    // into the environment so header, body, cards, and footer all warm together.
+    private var theme: StokerTheme {
+        StokerTheme.resolve(colorScheme: colorScheme, isOn: isOn)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             UnifiedHeader(model: model, selectedTab: $selectedTab, langRefresh: $langRefresh)
-            Divider()
 
             Group {
                 switch selectedTab {
@@ -54,16 +60,17 @@ private struct MainPanel: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            Divider()
             BottomActionBar(model: model, logStore: logStore, selectedTab: selectedTab)
         }
         .frame(minWidth: 720, minHeight: 600)
-        .background(
-            (isOn ? DS.windowActiveTint : Color(nsColor: .windowBackgroundColor))
-                .animation(.easeInOut(duration: 0.4), value: isOn)
-        )
+        .background(theme.surface)
+        .environment(\.stokerTheme, theme)
+        // ONE coordinated "forge igniting" transition: window base, header,
+        // cards, hairlines, and accents all warm in lockstep off `isOn`.
+        .animation(StokerTheme.forgeTransition, value: isOn)
         .sheet(isPresented: $showOnboarding) {
             OnboardingView(isPresented: $showOnboarding, root: model.root)
+                .environment(\.stokerTheme, theme)
         }
         .onAppear {
             logStore.load()
@@ -96,38 +103,44 @@ private struct UnifiedHeader: View {
     @ObservedObject var model: StokerAppModel
     @Binding var selectedTab: MainTab
     @Binding var langRefresh: Bool
+    @Environment(\.stokerTheme) private var theme
 
     private var isOn: Bool { model.state?.installed == true }
 
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 12) {
-                AppIconBadge()
+                AppIconBadge(isOn: isOn)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Stoker")
                         .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundStyle(theme.onSurface)
                     if let state = model.state {
                         Text(state.schedule.times.joined(separator: " · "))
                             .font(.system(size: 11, weight: .medium, design: .monospaced))
-                            .foregroundStyle(DS.textSecondary)
+                            .foregroundStyle(theme.textSecondary)
                     }
                 }
 
                 Spacer()
 
                 HStack(spacing: 6) {
+                    // Ember status dot — ignites on activate (scale 0.85→1.0 +
+                    // ember glow), then settles static. No perpetual pulse.
                     Circle()
-                        .fill(isOn ? DS.activeGreen : .secondary.opacity(0.4))
+                        .fill(isOn ? theme.accentOn : theme.textMuted.opacity(0.5))
                         .frame(width: 8, height: 8)
-                        .shadow(color: isOn ? DS.activeGreen.opacity(0.6) : .clear, radius: 4)
+                        .scaleEffect(isOn ? 1.0 : 0.85)
+                        .shadow(color: isOn ? theme.accentOn.opacity(0.6) : .clear, radius: 4)
+                        .animation(.easeOut(duration: 0.3), value: isOn)
 
                     Toggle("", isOn: Binding(
                         get: { isOn },
                         set: { _ in model.toggleSchedule() }
                     ))
                     .toggleStyle(.switch)
-                    .tint(DS.activeGreen)
+                    .tint(theme.accentOn)
                     .labelsHidden()
                     .scaleEffect(0.8)
                 }
@@ -147,10 +160,10 @@ private struct UnifiedHeader: View {
                         Text(AppLanguage.current == .zh ? "EN" : "中")
                             .font(.system(size: 11, weight: .bold, design: .rounded))
                     }
-                    .foregroundStyle(DS.textSecondary)
+                    .foregroundStyle(theme.textSecondary)
                     .padding(.horizontal, 10)
                     .frame(height: 26)
-                    .background(Color.primary.opacity(0.08))
+                    .background(theme.fillSubtle)
                     .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
@@ -161,12 +174,12 @@ private struct UnifiedHeader: View {
                 QuotaMiniBar(
                     label: "Claude",
                     percent: model.state?.quota["claude"]?.fiveHour?.remainingPercent,
-                    color: DS.claudePurple
+                    color: theme.seriesClaude
                 )
                 QuotaMiniBar(
                     label: "Codex",
                     percent: model.state?.quota["codex"]?.fiveHour?.remainingPercent,
-                    color: DS.codexGreen
+                    color: theme.seriesCodex
                 )
                 Spacer()
                 TabPicker(selected: $selectedTab)
@@ -179,6 +192,9 @@ private struct UnifiedHeader: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 10)
+        // Explicit header fill (one half-step deeper than surface) so the header
+        // shift is intentional and warms together with the rest of the window.
+        .background(theme.header)
         .animation(.easeInOut(duration: 0.25), value: model.statusMessage)
     }
 }
@@ -187,6 +203,7 @@ private struct UnifiedHeader: View {
 
 private struct TabPicker: View {
     @Binding var selected: MainTab
+    @Environment(\.stokerTheme) private var theme
     @Namespace private var ns
 
     var body: some View {
@@ -194,13 +211,13 @@ private struct TabPicker: View {
             ForEach(MainTab.allCases) { tab in
                 Text(tab.label)
                     .font(.system(size: 12, weight: selected == tab ? .bold : .medium, design: .rounded))
-                    .foregroundStyle(selected == tab ? DS.textPrimary : DS.textSecondary)
+                    .foregroundStyle(selected == tab ? theme.onSurface : theme.textSecondary)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 6)
                     .background {
                         if selected == tab {
                             Capsule()
-                                .fill(Color.primary.opacity(0.1))
+                                .fill(theme.accent.opacity(0.18))
                                 .matchedGeometryEffect(id: "activeTab", in: ns)
                         }
                     }
@@ -209,7 +226,7 @@ private struct TabPicker: View {
             }
         }
         .padding(3)
-        .background(Color.primary.opacity(0.04))
+        .background(theme.fillSubtle)
         .clipShape(Capsule())
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: selected)
     }
@@ -221,6 +238,14 @@ private struct QuotaMiniBar: View {
     var label: String
     var percent: Double?
     var color: Color
+    @Environment(\.stokerTheme) private var theme
+
+    private var quotaColor: Color {
+        guard let percent else { return theme.textMuted }
+        if percent > 50 { return theme.positive }
+        if percent > 20 { return theme.warning }
+        return theme.danger
+    }
 
     var body: some View {
         HStack(spacing: 6) {
@@ -241,7 +266,7 @@ private struct QuotaMiniBar: View {
 
             Text(DS.quotaLabel(percent))
                 .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(DS.quotaColor(percent))
+                .foregroundStyle(quotaColor)
                 .frame(width: 30, alignment: .trailing)
         }
     }
@@ -271,9 +296,10 @@ struct BottomActionBar: View {
     @ObservedObject var model: StokerAppModel
     @ObservedObject var logStore: LogStore
     var selectedTab: MainTab
+    @Environment(\.stokerTheme) private var theme
 
     private var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.2.0"
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.2.1"
     }
 
     var body: some View {
@@ -292,7 +318,7 @@ struct BottomActionBar: View {
                         .padding(.vertical, 2)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(DS.accentBlue)
+                .tint(theme.accentOn)
 
                 Button {
                     model.runNowWithDelayedRefresh()
@@ -333,7 +359,7 @@ struct BottomActionBar: View {
                 Spacer()
                 Text("v\(appVersion)")
                     .font(.caption)
-                    .foregroundStyle(DS.textMuted)
+                    .foregroundStyle(theme.textMuted)
             }
         }
         .padding(.horizontal, 18)

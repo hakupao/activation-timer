@@ -14,9 +14,53 @@ swift build -c release
 rm -rf "$APP_DIR"
 mkdir -p "${APP_DIR}/Contents/MacOS" "$ENGINE_DIR"
 cp "$EXECUTABLE" "${APP_DIR}/Contents/MacOS/StokerMenuBar"
-"${ROOT_DIR}/scripts/generate-app-icon.sh" "$ICON_DIR"
-cp "${ICON_DIR}/icon_512x512@2x.png" "${ROOT_DIR}/dist/AppIcon-preview.png"
-rm -rf "${ICON_DIR}/AppIcon.iconset" "${ICON_DIR}/icon_512x512@2x.png"
+
+# App icon: the Stoker "Forge" design-pack icon (ember aperture on a transparent squircle),
+# NOT the retired inline blue/teal/gold clock+bolt. LARGE slots (128px+) come from the AI
+# concept render (design/.../assets/generated/stoker-imagegen-app-icon-concept.png), cropped +
+# squircle-masked by tools/build_app_icon_from_concept.py; SMALL slots (16/32/64) use the
+# simplified hand-authored vector tiers. tools/generate_stoker_assets.py builds the rest.
+PACK_DIR="${ROOT_DIR}/design/stoker-ui-pack"
+PACK_ICNS="${PACK_DIR}/assets/png/app-icon/Stoker.icns"
+PACK_PREVIEW="${PACK_DIR}/assets/png/app-icon/AppIcon.iconset/icon_512x512@2x.png"
+
+# Regenerate assets from source when the toolchain is available so the bundle reflects current
+# art; fall back to the committed icns otherwise. The concept-based builder runs LAST so the
+# app icon is the AI-concept render (it would otherwise be overwritten by the vector icns).
+if command -v python3 >/dev/null 2>&1 && command -v rsvg-convert >/dev/null 2>&1; then
+  python3 "${PACK_DIR}/tools/generate_stoker_assets.py" >/dev/null 2>&1 \
+    || echo "WARNING: asset regeneration failed; using committed Stoker.icns" >&2
+  python3 "${PACK_DIR}/tools/build_app_icon_from_concept.py" >/dev/null 2>&1 \
+    || echo "WARNING: concept app-icon build failed; using vector Stoker.icns" >&2
+fi
+
+if [[ -f "$PACK_ICNS" ]]; then
+  cp "$PACK_ICNS" "${ICON_DIR}/AppIcon.icns"
+  [[ -f "$PACK_PREVIEW" ]] && cp "$PACK_PREVIEW" "${ROOT_DIR}/dist/AppIcon-preview.png"
+  # In-window badge: same AI-concept art (256px slot) so the window header icon matches the Dock.
+  PACK_BADGE="${PACK_DIR}/assets/png/app-icon/AppIcon.iconset/icon_256x256.png"
+  [[ -f "$PACK_BADGE" ]] && cp "$PACK_BADGE" "${ICON_DIR}/AppBadge.png"
+  echo "Installed Stoker Forge app icon from ${PACK_ICNS}"
+else
+  echo "WARNING: design-pack Stoker.icns not found at ${PACK_ICNS}; falling back to legacy icon generator" >&2
+  "${ROOT_DIR}/scripts/generate-app-icon.sh" "$ICON_DIR"
+  cp "${ICON_DIR}/icon_512x512@2x.png" "${ROOT_DIR}/dist/AppIcon-preview.png"
+  rm -rf "${ICON_DIR}/AppIcon.iconset" "${ICON_DIR}/icon_512x512@2x.png"
+fi
+
+# Menu bar icon: bundle the branded monochrome TEMPLATE mark (single schedule-sweep arc +
+# centered ember dot) so the running app can load it via NSImage(isTemplate:true). macOS
+# tints templates itself for light/dark menu bars + the highlighted state, so we ship ONE
+# pure-black-on-alpha image at @1x (18px) and @2x (36px); no white sibling. The app reads it
+# from Contents/Resources at runtime.
+MENUBAR_SRC="${PACK_DIR}/assets/png/menubar"
+if [[ -f "${MENUBAR_SRC}/stoker-menubar-template-black.png" ]]; then
+  cp "${MENUBAR_SRC}/stoker-menubar-template-black.png" "${ICON_DIR}/MenuBarIcon.png"
+  cp "${MENUBAR_SRC}/stoker-menubar-template-black@2x.png" "${ICON_DIR}/MenuBarIcon@2x.png"
+  echo "Installed Stoker menu bar template icon from ${MENUBAR_SRC}"
+else
+  echo "WARNING: menu bar template not found at ${MENUBAR_SRC}; app will fall back to SF Symbol" >&2
+fi
 
 copy_path() {
   local source="$1"
@@ -72,9 +116,9 @@ cat >"${APP_DIR}/Contents/Info.plist" <<'PLIST'
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>0.2.0</string>
+  <string>0.2.1</string>
   <key>CFBundleVersion</key>
-  <string>2</string>
+  <string>3</string>
   <key>LSMinimumSystemVersion</key>
   <string>14.0</string>
   <key>LSUIElement</key>
