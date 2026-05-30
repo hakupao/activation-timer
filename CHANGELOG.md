@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.2.3 - 2026-05-31
+
+### New app icon
+- Replaced the app icon with a refined vector master (the ember-aperture "Forge" mark),
+  rendered into the full macOS iconset and `Stoker.icns` from
+  `design/stoker-ui-pack/assets/logo/stoker-app-icon-master.pdf`. The Dock/Finder icon, the
+  in-window badge, the DMG volume icon, and both README headers now use the new art; the
+  monochrome menu-bar template is intentionally unchanged.
+- The icon pipeline now renders from the committed vector master (sips + Pillow, no rsvg
+  dependency) and no longer reverts to the previous AI-concept render on rebuild. The retired
+  concept builder and its 1.8 MB raster were removed.
+
 ## 0.2.2 - 2026-05-30
 
 ### Codex model selection
