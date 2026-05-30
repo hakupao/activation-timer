@@ -2,7 +2,7 @@
 
 [English](README.md) · [中文](README_CN.md)
 
-<img src="design/stoker-ui-pack/assets/generated/stoker-imagegen-app-icon-concept.png" width="148" alt="Stoker 应用图标" />
+<img src="design/stoker-ui-pack/assets/png/app-icon/stoker-app-icon-1024.png" width="148" alt="Stoker 应用图标" />
 
 # Stoker
 

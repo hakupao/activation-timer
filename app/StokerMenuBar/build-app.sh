@@ -15,23 +15,27 @@ rm -rf "$APP_DIR"
 mkdir -p "${APP_DIR}/Contents/MacOS" "$ENGINE_DIR"
 cp "$EXECUTABLE" "${APP_DIR}/Contents/MacOS/StokerMenuBar"
 
-# App icon: the Stoker "Forge" design-pack icon (ember aperture on a transparent squircle),
-# NOT the retired inline blue/teal/gold clock+bolt. LARGE slots (128px+) come from the AI
-# concept render (design/.../assets/generated/stoker-imagegen-app-icon-concept.png), cropped +
-# squircle-masked by tools/build_app_icon_from_concept.py; SMALL slots (16/32/64) use the
-# simplified hand-authored vector tiers. tools/generate_stoker_assets.py builds the rest.
+# App icon: the Stoker "Forge" mark (ember aperture on a transparent squircle), rendered from
+# the designer's vector master (design/.../assets/logo/stoker-app-icon-master.pdf) by
+# tools/build_app_icon_from_master.py — sips rasterize -> flood-fill transparent corners ->
+# full iconset -> Stoker.icns. tools/generate_stoker_assets.py builds the rest of the pack
+# (menu-bar template, cue/status icons, docs).
 PACK_DIR="${ROOT_DIR}/design/stoker-ui-pack"
 PACK_ICNS="${PACK_DIR}/assets/png/app-icon/Stoker.icns"
 PACK_PREVIEW="${PACK_DIR}/assets/png/app-icon/AppIcon.iconset/icon_512x512@2x.png"
 
-# Regenerate assets from source when the toolchain is available so the bundle reflects current
-# art; fall back to the committed icns otherwise. The concept-based builder runs LAST so the
-# app icon is the AI-concept render (it would otherwise be overwritten by the vector icns).
+# Regenerate pack chrome (cue/status icons, menu-bar template, docs) from the SVG sources when
+# a vector renderer is available; the committed assets are used as-is otherwise.
 if command -v python3 >/dev/null 2>&1 && command -v rsvg-convert >/dev/null 2>&1; then
   python3 "${PACK_DIR}/tools/generate_stoker_assets.py" >/dev/null 2>&1 \
-    || echo "WARNING: asset regeneration failed; using committed Stoker.icns" >&2
-  python3 "${PACK_DIR}/tools/build_app_icon_from_concept.py" >/dev/null 2>&1 \
-    || echo "WARNING: concept app-icon build failed; using vector Stoker.icns" >&2
+    || echo "WARNING: pack asset regeneration failed; using committed assets" >&2
+fi
+# Regenerate the app icon from the vector master. This needs only sips + Pillow (no rsvg), so
+# it runs whenever python3 is present and OVERRIDES any app icon the SVG pass above produced.
+# Falls back to the committed Stoker.icns if Pillow is unavailable.
+if command -v python3 >/dev/null 2>&1; then
+  python3 "${PACK_DIR}/tools/build_app_icon_from_master.py" >/dev/null 2>&1 \
+    || echo "WARNING: app-icon build from master failed; using committed Stoker.icns" >&2
 fi
 
 if [[ -f "$PACK_ICNS" ]]; then
